@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Mail, Lock, User, Eye, EyeOff } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function AuthPages() {
   const [isSignIn, setIsSignIn] = useState(true);
@@ -10,8 +11,10 @@ export default function AuthPages() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
+    router.push("/dashboard");
     e.preventDefault();
     console.log('Submit:', { email, password, fullName });
   };
