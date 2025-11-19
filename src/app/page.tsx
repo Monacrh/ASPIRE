@@ -3,8 +3,12 @@
 import React from 'react';
 import { BookOpen, UserCheck, Users } from 'lucide-react';
 import Footer from './components/footer';
+import { useRouter } from "next/navigation";
 
 export default function EduixLanding() {
+  
+  const router = useRouter();
+
   return (
     <>
     <div className="min-h-screen bg-[#FFF8DC]">
@@ -66,6 +70,7 @@ export default function EduixLanding() {
                 e.currentTarget.style.transform = 'translate(0, 0)';
                 e.currentTarget.style.boxShadow = '6px 6px 0 rgba(0,0,0,1)';
               }}
+              onClick={() => router.push("/auth")}
             >
               Get Started
             </button>
