@@ -266,7 +266,7 @@ export default function Dashboard() {
               >
                 <div className="flex items-center gap-4">
                   <motion.div 
-                    className="w-12 h-12 bg-gray-800 border-2 border-gray-800 flex items-center justify-center flex-shrink-0"
+                    className="w-12 h-12 bg-gray-800 border-2 border-gray-800 flex items-center justify-center shrink-0"
                     style={{ boxShadow: '3px 3px 0 rgba(0,0,0,0.3)' }}
                     whileHover={{ rotate: 5 }}
                   >
@@ -285,7 +285,7 @@ export default function Dashboard() {
                   <AnimatePresence>
                     {selectedType === 'course' && (
                       <motion.div 
-                        className="w-6 h-6 bg-gray-800 border-2 border-gray-800 flex items-center justify-center flex-shrink-0"
+                        className="w-6 h-6 bg-gray-800 border-2 border-gray-800 flex items-center justify-center shrink-0"
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
                         exit={{ scale: 0, rotate: 180 }}
@@ -319,7 +319,7 @@ export default function Dashboard() {
               >
                 <div className="flex items-center gap-4">
                   <motion.div 
-                    className="w-12 h-12 bg-gray-800 border-2 border-gray-800 flex items-center justify-center flex-shrink-0"
+                    className="w-12 h-12 bg-gray-800 border-2 border-gray-800 flex items-center justify-center shrink-0"
                     style={{ boxShadow: '3px 3px 0 rgba(0,0,0,0.3)' }}
                     whileHover={{ rotate: 5 }}
                   >
@@ -338,7 +338,7 @@ export default function Dashboard() {
                   <AnimatePresence>
                     {selectedType === 'career' && (
                       <motion.div 
-                        className="w-6 h-6 bg-gray-800 border-2 border-gray-800 flex items-center justify-center flex-shrink-0"
+                        className="w-6 h-6 bg-gray-800 border-2 border-gray-800 flex items-center justify-center shrink-0"
                         initial={{ scale: 0, rotate: -180 }}
                         animate={{ scale: 1, rotate: 0 }}
                         exit={{ scale: 0, rotate: 180 }}
