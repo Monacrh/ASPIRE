@@ -2,17 +2,24 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, X, Briefcase, Zap, Star, ChevronRight, Hash } from 'lucide-react';
+import { ArrowLeft, X, Briefcase, Zap, Star, ChevronRight, Hash, Sparkles, Target, TrendingUp, DollarSign, Cpu } from 'lucide-react';
 
-// --- DATA ---
+// --- DATA YANG DIPERKAYA ---
 interface Recommendation {
   id: string;
   name: string;
   percentage: number;
   color: string;
-  description: string;
+  description: string; // Sekarang lebih panjang
   details: string[];
   tags: string[];
+  salary: string;     // Data Baru
+  tools: string[];    // Data Baru
+  stats: {            // Data Baru
+    logic: number;
+    creativity: number;
+    social: number;
+  };
 }
 
 const recommendations: Recommendation[] = [
@@ -21,36 +28,48 @@ const recommendations: Recommendation[] = [
     name: 'Software Engineer',
     percentage: 85,
     color: '#FFD93D', // Yellow
-    description: 'You are the architect of the digital world. You enjoy building complex systems from scratch and solving logic puzzles.',
+    description: 'You are the architect of the digital world. While others see only pixels, you see the matrix. You enjoy building complex systems from scratch, debugging reality, and drinking excessive amounts of coffee.',
     details: ['System Design', 'Algorithms', 'Full-Stack', 'Cloud Ops'],
-    tags: ['High Demand', 'Builder']
+    tags: ['High Demand', 'Builder'],
+    salary: '$80k - $150k',
+    tools: ['VS Code', 'Docker', 'Git', 'Jira'],
+    stats: { logic: 95, creativity: 60, social: 40 }
   },
   {
     id: '2',
     name: 'Data Scientist',
     percentage: 72,
     color: '#FF90E8', // Pink
-    description: 'You see patterns where others see chaos. Using math and statistics to predict the future is your superpower.',
+    description: 'You are a modern-day oracle. You see patterns where others see chaos. Using math and statistics to predict the future is your superpower, turning raw numbers into actionable gold.',
     details: ['Machine Learning', 'Statistics', 'Python / R', 'Big Data'],
-    tags: ['Analytical', 'Math']
+    tags: ['Analytical', 'Math'],
+    salary: '$90k - $160k',
+    tools: ['Jupyter', 'TensorFlow', 'Tableau', 'SQL'],
+    stats: { logic: 90, creativity: 50, social: 50 }
   },
   {
     id: '3',
     name: 'Product Manager',
     percentage: 60,
     color: '#4DE1C1', // Cyan
-    description: 'The bridge between tech and people. You prioritize features, manage roadmaps, and lead the vision.',
+    description: 'The diplomat of the tech world. You bridge the gap between code and customers. You prioritize features, manage roadmaps, and ensure the ship is steering in the right direction.',
     details: ['Strategy', 'User Empathy', 'Scrum', 'Leadership'],
-    tags: ['Strategy', 'Social']
+    tags: ['Strategy', 'Social'],
+    salary: '$100k - $170k',
+    tools: ['Notion', 'Figma', 'Slack', 'Amplitude'],
+    stats: { logic: 70, creativity: 60, social: 95 }
   },
   {
     id: '4',
     name: 'UX Designer',
     percentage: 45,
     color: '#FFFFFF', // White
-    description: 'You ensure technology feels human. You fight for the user, crafting intuitive and beautiful experiences.',
+    description: 'The user\'s champion. You ensure technology feels human, not robotic. You fight for intuitive experiences, crafting interfaces that are not just functional, but beautiful and delightful.',
     details: ['Wireframing', 'Prototyping', 'User Research', 'Visual UI'],
-    tags: ['Creative', 'Empathy']
+    tags: ['Creative', 'Empathy'],
+    salary: '$75k - $140k',
+    tools: ['Figma', 'Sketch', 'Maze', 'Adobe CC'],
+    stats: { logic: 40, creativity: 95, social: 80 }
   }
 ];
 
@@ -91,7 +110,6 @@ export default function ResultPage() {
   }, { currentPercent: 0, items: [] as any[] }).items;
 
   return (
-    // Background: Creamy Retro White
     <div className="h-screen w-full bg-[#FFF8DC] font-sans text-black overflow-hidden relative flex flex-col">
       
       {/* --- HEADER (Fixed) --- */}
@@ -111,7 +129,6 @@ export default function ResultPage() {
                         Result<span className="text-[#FF6B6B]">.</span>
                     </h1>
                 </div>
-                {/* Badge Retro */}
                 <div className="hidden md:block px-4 py-2 bg-[#FF90E8] border-4 border-black font-black uppercase shadow-[4px_4px_0_black] transform rotate-2">
                     Career Mode
                 </div>
@@ -122,21 +139,20 @@ export default function ResultPage() {
       {/* --- MAIN STAGE --- */}
       <div className="flex-1 relative w-full h-full">
         
-        {/* 1. PIE CHART (The Navigator) */}
+        {/* 1. PIE CHART (Fixed Position) */}
         <motion.div
           layout
           className="absolute z-50 flex items-center justify-center"
           initial={false}
           animate={{ 
-            // Posisi: Tengah -> Kiri Atas
-            top: selectedId ? '2rem' : '50%',
-            left: selectedId ? '2rem' : '50%',
-            x: selectedId ? '0%' : '-50%',
+            top: selectedId ? '5%' : '50%',
+            left: '50%', 
+            x: '-50%', 
             y: selectedId ? '0%' : '-50%',
-            width: selectedId ? '110px' : '100%',
-            maxWidth: selectedId ? '110px' : '450px',
+            width: selectedId ? '200px' : '100%',
+            maxWidth: selectedId ? '200px' : '450px',
           }}
-          transition={{ type: 'spring', stiffness: 250, damping: 30 }}
+          transition={{ type: 'spring', stiffness: 200, damping: 25 }}
         >
            <div className="w-full aspect-square relative">
                 <svg 
@@ -166,13 +182,12 @@ export default function ResultPage() {
                                 stroke="#000000" 
                                 strokeWidth="0.04" 
                             />
-                            {/* LABEL: Only % */}
                             {slice.percentage >= 10 && (
                                 <text
                                     x={slice.labelX}
                                     y={slice.labelY}
                                     fill="#000000"
-                                    fontSize={selectedId ? "0.28" : "0.12"}
+                                    fontSize={selectedId ? "0.2" : "0.12"}
                                     fontWeight="900"
                                     textAnchor="middle"
                                     alignmentBaseline="middle"
@@ -189,113 +204,151 @@ export default function ResultPage() {
            </div>
         </motion.div>
 
-        {/* 2. NEOBRUTALISM CARD (Description) */}
+        {/* 2. DETAIL PANEL (Fixed Height - Tidak Collapse dengan Pie Chart) */}
         <AnimatePresence>
           {selectedItem && (
             <motion.div
                 key="detail-card"
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                transition={{ delay: 0.1, type: 'spring', stiffness: 200, damping: 25 }}
-                // Padding kiri besar untuk chart
-                className="absolute inset-0 pt-28 px-4 pb-4 md:pl-40 md:pt-8 md:pr-8 z-30 flex flex-col"
+                initial={{ opacity: 0, y: 400 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 400 }}
+                transition={{ delay: 0.1, type: 'spring', stiffness: 180, damping: 25 }}
+                // PANEL TIDAK COLLAPSE: Tetap di posisi bawah dengan height tetap
+                className="absolute bottom-0 left-0 w-full h-[62%] z-30 px-4 pb-4 flex flex-col"
             >
                 {/* Main Card Container */}
-                <div className="w-full h-full max-w-5xl mx-auto bg-white border-4 border-black shadow-[12px_12px_0_black] flex flex-col overflow-hidden relative rounded-lg">
+                <div className="w-full h-full max-w-6xl mx-auto flex flex-col md:flex-row gap-4 overflow-hidden">
                     
-                    {/* A. Marquee Header (Teks Berjalan) */}
-                    <div className="h-10 border-b-4 border-black bg-[#4DE1C1] overflow-hidden flex items-center whitespace-nowrap shrink-0">
-                        <motion.div 
-                            animate={{ x: [0, -1000] }}
-                            transition={{ repeat: Infinity, duration: 20, ease: "linear" }}
-                            className="flex items-center gap-8 font-black uppercase text-sm"
-                        >
-                            {[...Array(10)].map((_, i) => (
-                                <span key={i} className="flex items-center gap-2">
-                                    <Star className="w-4 h-4 fill-black" />
-                                    Top Recommendation Found
-                                    <Star className="w-4 h-4 fill-black" />
-                                    Analysis Complete
-                                </span>
-                            ))}
-                        </motion.div>
-                    </div>
-
-                    {/* B. Scrollable Content */}
-                    <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar relative">
-                        
-                        {/* Close Button Inside */}
-                        <button 
+                    {/* --- LEFT PANEL: IDENTITY & STATS --- */}
+                    <motion.div 
+                        className="w-full md:w-[40%] bg-white border-4 border-black shadow-[8px_8px_0_black] rounded-lg p-6 flex flex-col relative overflow-y-auto custom-scrollbar"
+                        initial={{ x: -50, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.2 }}
+                    >
+                         {/* Close Button (Mobile Only Position) */}
+                         <button 
                             onClick={() => setSelectedId(null)}
-                            className="absolute top-6 right-6 p-2 bg-white border-4 border-black hover:bg-red-100 shadow-[4px_4px_0_black] active:translate-y-1 active:shadow-none transition-all z-10"
+                            className="absolute top-2 right-2 md:hidden p-2 bg-black text-white z-50"
                         >
-                            <X className="w-6 h-6" strokeWidth={4} />
+                            <X size={20}/>
                         </button>
 
-                        <div className="max-w-4xl">
-                            {/* Tags */}
-                            <div className="flex gap-3 mb-4">
-                                {selectedItem.tags.map(tag => (
-                                    <span key={tag} className="px-3 py-1 bg-black text-white font-bold uppercase text-xs transform -rotate-1">
+                        {/* Header Title */}
+                        <div className="mt-4 mb-6 border-b-4 border-black pb-4">
+                             <h2 className="text-3xl md:text-4xl font-black uppercase leading-[0.9] mb-2">
+                                {selectedItem.name}
+                            </h2>
+                            <div className="flex gap-2 flex-wrap">
+                                {selectedItem.tags.map((tag) => (
+                                    <span key={tag} className="px-2 py-1 bg-[#FFD93D] border-2 border-black text-[10px] font-bold uppercase">
                                         {tag}
                                     </span>
                                 ))}
                             </div>
+                        </div>
 
-                            {/* Title & Big Stat */}
-                            <div className="flex flex-col md:flex-row md:items-end gap-6 mb-8 border-b-4 border-black pb-8 border-dashed">
-                                <div className="flex-1">
-                                    <h2 className="text-4xl md:text-6xl font-black uppercase leading-[0.9] tracking-tight">
-                                        {selectedItem.name}
-                                    </h2>
-                                </div>
-                                {/* Sticker Stat */}
-                                <div className="w-32 h-32 bg-[#FFD93D] rounded-full border-4 border-black flex flex-col items-center justify-center shadow-[4px_4px_0_black] shrink-0 rotate-6 transform hover:rotate-0 transition-transform">
-                                    <span className="text-4xl font-black">{selectedItem.percentage}%</span>
-                                    <span className="text-xs font-bold uppercase">Match</span>
-                                </div>
+                        {/* Description */}
+                        <p className="text-sm font-bold leading-relaxed text-gray-700 mb-8">
+                            {selectedItem.description}
+                        </p>
+
+                        {/* NEW SECTION: Character Stats (Bar Meters) */}
+                        <div className="mt-auto bg-gray-100 p-4 border-2 border-black rounded mb-4">
+                             <h4 className="font-black uppercase text-xs mb-3 flex items-center gap-2">
+                                <Cpu className="w-4 h-4" /> Character Stats
+                             </h4>
+                             <div className="space-y-3">
+                                {Object.entries(selectedItem.stats).map(([key, value]) => (
+                                    <div key={key} className="flex items-center gap-2">
+                                        <span className="w-20 text-[10px] font-bold uppercase text-right">{key}</span>
+                                        <div className="flex-1 h-3 bg-white border-2 border-black relative">
+                                            <motion.div 
+                                                initial={{ width: 0 }}
+                                                animate={{ width: `${value}%` }}
+                                                transition={{ delay: 0.5, duration: 1 }}
+                                                className="h-full bg-black"
+                                            />
+                                        </div>
+                                    </div>
+                                ))}
+                             </div>
+                        </div>
+
+                         {/* NEW SECTION: Salary Estimate */}
+                        <div className="flex items-center justify-between bg-black text-white p-3 border-2 border-transparent">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="w-5 h-5 text-[#4DE1C1]" />
+                                <span className="font-bold text-xs uppercase">Est. Salary</span>
                             </div>
+                            <span className="font-mono font-bold text-[#FFD93D]">{selectedItem.salary}</span>
+                        </div>
 
-                            {/* Description Box */}
-                            <div className="mb-8 p-6 bg-[#F3F4F6] border-4 border-black relative">
-                                <Briefcase className="absolute -top-4 -left-3 w-8 h-8 bg-white border-2 border-black p-1 fill-[#FF90E8]" />
-                                <p className="text-xl font-bold leading-relaxed text-gray-800">
-                                    &quot;{selectedItem.description}&quot;
-                                </p>
-                            </div>
+                    </motion.div>
 
-                            {/* Skills Grid (Chunky Buttons) */}
-                            <div>
-                                <h3 className="font-black text-lg uppercase mb-4 flex items-center gap-2">
-                                    <Zap className="w-6 h-6 fill-black" /> Required Skills
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {selectedItem.details.map((detail, i) => (
-                                        <div 
-                                            key={i} 
-                                            className="group flex items-center justify-between p-4 border-4 border-black bg-white hover:bg-[#FF90E8] transition-colors shadow-[4px_4px_0_rgba(0,0,0,0.2)] hover:shadow-[4px_4px_0_black] cursor-default"
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span className="flex items-center justify-center w-8 h-8 bg-black text-white font-black text-sm rounded-sm">
+                    {/* --- RIGHT PANEL: SKILLS & TOOLS --- */}
+                    <motion.div 
+                        className="w-full md:w-[60%] flex flex-col gap-4 h-full"
+                        initial={{ x: 50, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        {/* Skills & Tools Box */}
+                        <div className="flex-1 bg-white border-4 border-black shadow-[8px_8px_0_black] rounded-lg overflow-hidden flex flex-col relative">
+                             {/* Desktop Close Button */}
+                             <button 
+                                onClick={() => setSelectedId(null)}
+                                className="hidden md:flex absolute top-4 right-4 w-8 h-8 bg-white border-2 border-black hover:bg-red-100 items-center justify-center z-10 shadow-[2px_2px_0_black] active:translate-y-0.5 active:shadow-none"
+                            >
+                                <X className="w-4 h-4" strokeWidth={3} />
+                            </button>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                                
+                                {/* Core Skills Section */}
+                                <div className="mb-8">
+                                    <h3 className="font-black text-lg uppercase mb-4 flex items-center gap-2 border-b-4 border-black w-fit px-2 bg-[#FF90E8]">
+                                        <Zap className="w-5 h-5" /> Abilities
+                                    </h3>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {selectedItem.details.map((detail, i) => (
+                                            <div key={i} className="flex items-center gap-3 p-3 border-2 border-black bg-[#F3F4F6] hover:bg-white transition-colors shadow-[3px_3px_0_rgba(0,0,0,0.1)]">
+                                                <div className="w-6 h-6 bg-black text-white flex items-center justify-center font-bold text-xs rounded-sm">
                                                     {i + 1}
-                                                </span>
+                                                </div>
                                                 <span className="font-bold text-sm uppercase">{detail}</span>
                                             </div>
-                                            <Hash className="w-5 h-5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                        </div>
-                                    ))}
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* NEW SECTION: Tools / Inventory */}
+                                <div>
+                                    <h3 className="font-black text-lg uppercase mb-4 flex items-center gap-2 border-b-4 border-black w-fit px-2 bg-[#4DE1C1]">
+                                        Inventory
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {selectedItem.tools.map((tool) => (
+                                            <span key={tool} className="px-4 py-2 border-2 border-black rounded-full text-xs font-bold uppercase flex items-center gap-2 bg-white hover:bg-black hover:text-white transition-colors cursor-default">
+                                                <Hash className="w-3 h-3" /> {tool}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Bottom CTA */}
-                            <div className="mt-10 pt-6">
-                                <button className="w-full py-4 bg-black text-white font-black text-lg uppercase tracking-widest hover:bg-[#4DE1C1] hover:text-black border-4 border-transparent hover:border-black shadow-[8px_8px_0_rgba(0,0,0,0.1)] hover:shadow-[6px_6px_0_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2">
-                                    Start This Path <ChevronRight className="w-6 h-6" strokeWidth={4} />
+                            {/* CTA Footer */}
+                            <div className="p-4 border-t-4 border-black bg-gray-50">
+                                <button 
+                                    className="w-full py-4 text-white font-black text-lg uppercase tracking-widest border-4 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-2"
+                                    style={{ backgroundColor: selectedItem.color === '#FFFFFF' ? '#000' : selectedItem.color, color: selectedItem.color === '#FFFFFF' ? '#FFF' : '#000' }}
+                                >
+                                    Unlock Career Path <ChevronRight className="w-6 h-6" strokeWidth={4} />
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </motion.div>
+
                 </div>
             </motion.div>
           )}
@@ -318,6 +371,24 @@ export default function ResultPage() {
         )}
 
       </div>
+
+      {/* Custom Scrollbar CSS */}
+      <style jsx global>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #FFF;
+          border-left: 2px solid #000;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #000;
+          border-radius: 0;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #555;
+        }
+      `}</style>
     </div>
   );
 }
