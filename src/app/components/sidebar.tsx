@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen } from 'lucide-react';
-// PERBAIKAN 1: Import 'Variants'
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 
 export default function RetroSidebar() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
   
   const [courseHistory] = useState([
@@ -128,6 +129,7 @@ export default function RetroSidebar() {
           <AnimatePresence mode="wait">
             {isOpen ? (
               <motion.button
+                onClick={() => router.push("/dashboard")}
                 key="full-btn"
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
@@ -176,6 +178,7 @@ export default function RetroSidebar() {
 
               {courseHistory.map((item) => (
                 <motion.button
+                  onClick={() => router.push("/result/course")}
                   key={item.id}
                   variants={buttonClick}
                   whileHover="hover"
@@ -203,6 +206,7 @@ export default function RetroSidebar() {
 
               {careerHistory.map((item) => (
                 <motion.button
+                  onClick={() => router.push("/result/career")}
                   key={item.id}
                   variants={buttonClick}
                   whileHover="hover"
