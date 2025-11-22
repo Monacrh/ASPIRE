@@ -92,24 +92,28 @@ export default function RetroSidebar() {
         
         {/* --- HEADER --- */}
         <div className="p-5 border-b-4 border-black bg-white flex items-center justify-between h-24 overflow-hidden">
-          <AnimatePresence mode='wait'>
-            {isOpen && (
-              <motion.div 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20, transition: { duration: 0.1 } }}
-                className="flex items-center gap-3 whitespace-nowrap"
-              >
-                <div className="w-10 h-10 bg-black flex items-center justify-center transform -rotate-3 shadow-[3px_3px_0_#FF90E8]">
-                  <span className="text-white font-black text-xl">A</span>
-                </div>
-                <h1 className="text-2xl font-black tracking-tighter text-black uppercase italic">
-                  Aspire<span className="text-[#FF90E8]">.</span>
-                </h1>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          
+          <button 
+            onClick={() => router.push("/dashboard")}
+            className="flex items-center"  // supaya tidak merusak layout
+          >
+            <AnimatePresence mode="wait">
+              {isOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20, transition: { duration: 0.1 } }}
+                  className="flex items-center gap-3 whitespace-nowrap cursor-pointer"
+                >
+                  <div className="w-10 h-10 bg-black flex items-center justify-center transform -rotate-3 shadow-[3px_3px_0_#FF90E8]">
+                    <span className="text-white font-black text-xl">A</span>
+                  </div>
+                  <h1 className="text-2xl font-black tracking-tighter text-black uppercase italic">
+                    Aspire<span className="text-[#FF90E8]">.</span>
+                  </h1>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
           {/* Toggle Button */}
           <motion.button
             onClick={() => setIsOpen(!isOpen)}

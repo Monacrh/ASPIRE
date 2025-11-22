@@ -45,7 +45,7 @@ const recommendations: Recommendation[] = [
   {
     id: '1',
     name: 'Software Engineer',
-    percentage: 85,
+    percentage: 40, // Changed from 85
     color: '#FFD93D',
     description: 'You are the architect of the digital world. While others see only pixels, you see the matrix. You enjoy building complex systems from scratch, debugging reality, and drinking excessive amounts of coffee.',
     details: ['System Design', 'Algorithms', 'Full-Stack', 'Cloud Ops'],
@@ -81,7 +81,7 @@ const recommendations: Recommendation[] = [
   {
     id: '2',
     name: 'Data Scientist',
-    percentage: 72,
+    percentage: 30, // Changed from 72
     color: '#FF90E8',
     description: 'You are a modern-day oracle. You see patterns where others see chaos. Using math and statistics to predict the future is your superpower, turning raw numbers into actionable gold.',
     details: ['Machine Learning', 'Statistics', 'Python / R', 'Big Data'],
@@ -117,7 +117,7 @@ const recommendations: Recommendation[] = [
   {
     id: '3',
     name: 'Product Manager',
-    percentage: 60,
+    percentage: 20, // Changed from 60
     color: '#4DE1C1',
     description: 'The diplomat of the tech world. You bridge the gap between code and customers. You prioritize features, manage roadmaps, and ensure the ship is steering in the right direction.',
     details: ['Strategy', 'User Empathy', 'Scrum', 'Leadership'],
@@ -153,7 +153,7 @@ const recommendations: Recommendation[] = [
   {
     id: '4',
     name: 'UX Designer',
-    percentage: 45,
+    percentage: 10, // Changed from 45
     color: '#FFFFFF',
     description: 'The user\'s champion. You ensure technology feels human, not robotic. You fight for intuitive experiences, crafting interfaces that are not just functional, but beautiful and delightful.',
     details: ['Wireframing', 'Prototyping', 'User Research', 'Visual UI'],
@@ -187,7 +187,6 @@ const recommendations: Recommendation[] = [
     similarCareers: ['UI Designer', 'Product Designer', 'UX Researcher']
   }
 ];
-
 // --- MATH HELPER ---
 const getCoordinatesForPercent = (percent: number) => {
   const x = Math.cos(2 * Math.PI * percent);

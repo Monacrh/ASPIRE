@@ -42,8 +42,8 @@ const electiveCourses: ElectiveCourse[] = [
     code: 'CS4092',
     title: 'Advanced Generative AI',
     credits: 3,
-    percentage: 92,
-    color: '#FFD93D', // Yellow
+    percentage: 40, // Changed from 92
+    color: '#FFD93D',
     description: 'An elective to dive deep into Transformer architectures and LLMs. You will learn model fine-tuning, RAG systems, and AI ethics. Highly recommended based on your high grades in Linear Algebra and Probability.',
     level: 'Undergraduate',
     tags: ['Trending', 'High Relevance'],
@@ -67,8 +67,8 @@ const electiveCourses: ElectiveCourse[] = [
     code: 'IS3104',
     title: 'Human-Computer Interaction',
     credits: 3,
-    percentage: 78,
-    color: '#FF90E8', // Pink
+    percentage: 30, // Changed from 78
+    color: '#FF90E8',
     description: 'Focuses on User-Centered Design (UCD) interfaces. This course complements your technical skills with design empathy and usability testing capabilities.',
     level: 'Undergraduate',
     tags: ['Design', 'Soft Skill'],
@@ -92,8 +92,8 @@ const electiveCourses: ElectiveCourse[] = [
     code: 'SE4201',
     title: 'Software Architecture',
     credits: 4,
-    percentage: 65,
-    color: '#4DE1C1', // Teal
+    percentage: 20, // Changed from 65
+    color: '#4DE1C1',
     description: 'Learn how to design large-scale systems. From Monolith to Microservices, covering essential design patterns every Software Architect must know.',
     level: 'Undergraduate',
     tags: ['System Design', 'Hard Skill'],
@@ -117,8 +117,8 @@ const electiveCourses: ElectiveCourse[] = [
     code: 'BA3022',
     title: 'Tech Entrepreneurship',
     credits: 2,
-    percentage: 50,
-    color: '#FFFFFF', // White
+    percentage: 10, // Changed from 50
+    color: '#FFFFFF',
     description: 'A cross-major course. Learn how to turn code into a business. Covers idea validation, Business Model Canvas, and investor pitching.',
     level: 'Undergraduate',
     tags: ['Business', 'Management'],
