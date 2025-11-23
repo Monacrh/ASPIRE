@@ -3,11 +3,15 @@
 import React, { useState } from 'react';
 import { Upload, FileText, BookOpen, Briefcase, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [selectedType, setSelectedType] = useState<'course' | 'career' | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const router = useRouter();
+  const [isUploading, setIsUploading] = useState(false);
+
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,9 +43,40 @@ export default function Dashboard() {
     setSelectedFile(null);
   };
 
-  const handleSubmit = () => {
-    if (selectedFile && selectedType) {
-      console.log('Submitting:', { file: selectedFile, type: selectedType });
+  const handleSubmit = async () => {
+    if (!selectedFile || !selectedType) return;
+
+    setIsUploading(true);
+
+    try {
+      // 1. Buat FormData
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('type', selectedType);
+
+      // 2. Panggil API POST
+      const res = await fetch('/api/transcripts', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || 'Upload failed');
+      }
+
+      console.log('Upload success, ID:', data.id);
+      
+      // 3. Redirect ke halaman result yang sesuai
+      // Kita bisa mengirim ID transcript lewat URL query param jika perlu
+      router.push(`/result/${selectedType}?id=${data.id}`);
+
+    } catch (error) {
+      console.error('Error submitting:', error);
+      alert('Gagal mengupload transcript. Silakan coba lagi.');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -131,7 +166,7 @@ export default function Dashboard() {
                         id="file-upload"
                         type="file"
                         className="hidden"
-                        accept=".pdf,.jpg,.jpeg,.png"
+                        accept=".pdf"
                         onChange={handleFileSelect}
                       />
                       <motion.span
@@ -363,9 +398,9 @@ export default function Dashboard() {
                 }}
                 transition={{ duration: 0.2 }}
                 onClick={handleSubmit}
-                disabled={!selectedFile || !selectedType}
+                disabled={!selectedFile || !selectedType || isUploading}
                 className={`w-full py-3 font-bold text-gray-800 text-sm mt-6 ${
-                    !selectedFile || !selectedType ? "cursor-not-allowed" : ""
+                    !selectedFile || !selectedType || isUploading ? "cursor-not-allowed" : ""
                 }`}
                 style={{
                     backgroundColor: "#FFD93D",

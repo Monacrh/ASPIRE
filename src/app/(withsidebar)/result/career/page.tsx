@@ -235,8 +235,8 @@ export default function ResultPage() {
 
     const midPercent = startPercent + slicePercent / 2;
     const [midX, midY] = getCoordinatesForPercent(midPercent);
-    const labelX = midX * 0.7; 
-    const labelY = midY * 0.7;
+    const labelX = Number((midX * 0.7).toFixed(6)); 
+    const labelY = Number((midY * 0.7).toFixed(6));
 
     return {
       currentPercent: endPercent,

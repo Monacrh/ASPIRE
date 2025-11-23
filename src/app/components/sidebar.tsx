@@ -1,28 +1,62 @@
 'use client'
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from 'framer-motion';
+import { Transcript } from '@/src/types/transcript'; // Import tipe data
 
 export default function RetroSidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
   
-  const [courseHistory] = useState([
-    { id: 1, title: 'Introduction to React', date: '2h ago', type: 'course' },
-    { id: 2, title: 'CSS Grid Layout', date: '1d ago', type: 'course' },
-  ]);
+  // State untuk menyimpan data asli
+  const [courses, setCourses] = useState<Transcript[]>([]);
+  const [careers, setCareers] = useState<Transcript[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState({ name: 'Guest', email: '' }); // State user
 
-  const [careerHistory] = useState([
-    { id: 4, title: 'Frontend Path', date: '1w ago', type: 'career' },
-    { id: 5, title: 'UI/UX Guide', date: '2w ago', type: 'career' },
-  ]);
+  // --- FETCH DATA SAAT KOMPONEN DIMUAT ---
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // 1. Ambil Data Transkrip
+        const res = await fetch('/api/transcripts');
+        if (res.ok) {
+          const { data } = await res.json();
+          
+          // Pisahkan data berdasarkan tipe (course vs career)
+          const courseList = data.filter((t: Transcript) => t.recommendationType === 'course');
+          const careerList = data.filter((t: Transcript) => t.recommendationType === 'career');
+          
+          setCourses(courseList);
+          setCareers(careerList);
+        }
 
-  const userAccount = {
-    name: 'John Doe',
-    email: 'john@aspire.com',
-    avatar: 'JD'
+        // 2. (Opsional) Ambil data User dari Auth API (jika ada endpoint profile)
+        // Untuk sekarang kita bisa ambil dari localStorage atau decode token di client
+        // Tapi untuk demo, kita biarkan default atau ambil dari props jika ada.
+        
+      } catch (error) {
+        console.error("Gagal mengambil history:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []); // Array kosong = jalan sekali saat mount
+
+  // Helper untuk format tanggal sederhana
+  const formatDate = (dateString: Date) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Helper untuk redirect ke halaman result
+  const handleNavigate = (type: 'course' | 'career', id: string) => {
+    // Arahkan ke halaman result dengan ID transcript
+    router.push(`/result/${type}?id=${id}`);
   };
 
   const colors = {
@@ -33,9 +67,7 @@ export default function RetroSidebar() {
     dark: '#1a1a1a'
   };
 
-  // --- ANIMATION VARIANTS (FIXED) ---
-  
-  // PERBAIKAN 2: Tambahkan ': Variants' di sini
+  // --- ANIMATION VARIANTS ---
   const sidebarVariants: Variants = {
     open: { 
       width: '20rem', 
@@ -47,7 +79,6 @@ export default function RetroSidebar() {
     }
   };
 
-  // PERBAIKAN 3: Tambahkan ': Variants' di sini
   const containerVariants: Variants = {
     open: {
       transition: { staggerChildren: 0.1, delayChildren: 0.2 }
@@ -57,7 +88,6 @@ export default function RetroSidebar() {
     }
   };
 
-  // PERBAIKAN 4: Tambahkan ': Variants' di sini
   const itemVariants: Variants = {
     open: { 
       opacity: 1, 
@@ -72,7 +102,6 @@ export default function RetroSidebar() {
     }
   };
 
-  // PERBAIKAN 5: Tambahkan ': Variants' di sini
   const buttonClick: Variants = {
     rest: { x: 0, y: 0, boxShadow: '4px 4px 0px rgba(0,0,0,1)' },
     hover: { x: 2, y: 2, boxShadow: '2px 2px 0px rgba(0,0,0,1)' },
@@ -94,7 +123,7 @@ export default function RetroSidebar() {
         <div className="p-5 border-b-4 border-black bg-white flex items-center justify-between h-24 overflow-hidden">
           <button 
             onClick={() => router.push("/dashboard")}
-            className="flex items-center"  // supaya tidak merusak layout
+            className="flex items-center"
           >
             <AnimatePresence mode="wait">
               {isOpen && (
@@ -174,57 +203,71 @@ export default function RetroSidebar() {
           >
             
             {/* Section: Courses */}
-            <motion.div variants={itemVariants} className="space-y-3">
-              <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform -rotate-1 shadow-[2px_2px_0px_rgba(77,225,193,1)]">
-                <BookOpen className="w-4 h-4" />
-                <h2 className="font-bold text-xs uppercase tracking-widest">Courses</h2>
-              </div>
+            {/* Tampilkan hanya jika ada data courses atau sedang loading */}
+            {(courses.length > 0 || loading) && (
+              <motion.div variants={itemVariants} className="space-y-3">
+                <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform -rotate-1 shadow-[2px_2px_0px_rgba(77,225,193,1)]">
+                  <BookOpen className="w-4 h-4" />
+                  <h2 className="font-bold text-xs uppercase tracking-widest">Courses</h2>
+                </div>
 
-              {courseHistory.map((item) => (
-                <motion.button
-                  onClick={() => router.push("/result/course")}
-                  key={item.id}
-                  variants={buttonClick}
-                  whileHover="hover"
-                  whileTap="tap"
-                  className="w-full text-left p-3 border-2 border-black bg-white group relative overflow-hidden"
-                >
-                  <div className="absolute top-0 left-0 w-2 h-full bg-[#FF90E8] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
-                  <div className="pl-1 group-hover:pl-3 transition-all duration-200">
-                    <h3 className="font-bold text-black text-sm leading-tight mb-1">{item.title}</h3>
-                    <div className="flex items-center gap-1 text-xs font-mono text-gray-600 bg-gray-100 w-max px-1 border border-black">
-                      <Clock className="w-3 h-3" />
-                      {item.date}
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </motion.div>
+                {loading ? (
+                   <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
+                ) : (
+                  courses.map((item) => (
+                    <motion.button
+                      onClick={() => handleNavigate('course', item._id!.toString())}
+                      key={item._id?.toString()}
+                      variants={buttonClick}
+                      whileHover="hover"
+                      whileTap="tap"
+                      className="w-full text-left p-3 border-2 border-black bg-white group relative overflow-hidden"
+                    >
+                      <div className="absolute top-0 left-0 w-2 h-full bg-[#FF90E8] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
+                      <div className="pl-1 group-hover:pl-3 transition-all duration-200">
+                        {/* Tampilkan nama file sebagai judul */}
+                        <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
+                        <div className="flex items-center gap-1 text-xs font-mono text-gray-600 bg-gray-100 w-max px-1 border border-black">
+                          <Clock className="w-3 h-3" />
+                          {formatDate(item.createdAt)}
+                        </div>
+                      </div>
+                    </motion.button>
+                  ))
+                )}
+              </motion.div>
+            )}
 
             {/* Section: Career */}
-            <motion.div variants={itemVariants} className="space-y-3">
-              <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform rotate-1 shadow-[2px_2px_0px_#FFD93D]">
-                <Briefcase className="w-4 h-4" />
-                <h2 className="font-bold text-xs uppercase tracking-widest">Career</h2>
-              </div>
+            {(careers.length > 0 || loading) && (
+              <motion.div variants={itemVariants} className="space-y-3">
+                <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform rotate-1 shadow-[2px_2px_0px_#FFD93D]">
+                  <Briefcase className="w-4 h-4" />
+                  <h2 className="font-bold text-xs uppercase tracking-widest">Career</h2>
+                </div>
 
-              {careerHistory.map((item) => (
-                <motion.button
-                  onClick={() => router.push("/result/career")}
-                  key={item.id}
-                  variants={buttonClick}
-                  whileHover="hover"
-                  whileTap="tap"
-                  className="w-full text-left p-3 border-2 border-black bg-white group relative"
-                >
-                  <div className="absolute top-0 left-0 w-2 h-full bg-[#4DE1C1] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
-                  <div className="pl-1 group-hover:pl-3 transition-all duration-200">
-                    <h3 className="font-bold text-black text-sm leading-tight mb-1">{item.title}</h3>
-                    <p className="text-xs font-mono text-gray-500">{item.date}</p>
-                  </div>
-                </motion.button>
-              ))}
-            </motion.div>
+                {loading ? (
+                   <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
+                ) : (
+                  careers.map((item) => (
+                    <motion.button
+                      onClick={() => handleNavigate('career', item._id!.toString())}
+                      key={item._id?.toString()}
+                      variants={buttonClick}
+                      whileHover="hover"
+                      whileTap="tap"
+                      className="w-full text-left p-3 border-2 border-black bg-white group relative"
+                    >
+                      <div className="absolute top-0 left-0 w-2 h-full bg-[#4DE1C1] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
+                      <div className="pl-1 group-hover:pl-3 transition-all duration-200">
+                        <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
+                        <p className="text-xs font-mono text-gray-500">{formatDate(item.createdAt)}</p>
+                      </div>
+                    </motion.button>
+                  ))
+                )}
+              </motion.div>
+            )}
           </motion.div>
 
           {/* Collapsed Icons View */}
@@ -234,20 +277,33 @@ export default function RetroSidebar() {
                 animate={{ opacity: 1 }}
                 className="absolute top-[200px] left-0 w-full flex flex-col items-center space-y-4 pointer-events-none"
             >
-                {/* Ambil 1 course dan 1 career secara seimbang */}
-                {[courseHistory[0], careerHistory[0]].filter(Boolean).map((item, idx) => (
-                <motion.div
-                    key={idx}
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: idx * 0.1, type: "spring" }}
-                    className="pointer-events-auto"
-                >
-                    <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]">
-                    {item.type === 'course' ? <BookOpen className="w-5 h-5" /> : <Briefcase className="w-5 h-5" />}
-                    </div>
-                </motion.div>
-                ))}
+                {/* Ikon Course (jika ada) */}
+                {courses.length > 0 && (
+                  <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring" }}
+                      className="pointer-events-auto"
+                  >
+                      <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                  </motion.div>
+                )}
+                
+                {/* Ikon Career (jika ada) */}
+                {careers.length > 0 && (
+                  <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ delay: 0.1, type: "spring" }}
+                      className="pointer-events-auto"
+                  >
+                      <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]">
+                        <Briefcase className="w-5 h-5" />
+                      </div>
+                  </motion.div>
+                )}
             </motion.div>
             )}
         </div>
@@ -267,11 +323,11 @@ export default function RetroSidebar() {
                 className="w-full p-3 border-2 border-black bg-white flex items-center gap-3 relative z-10"
               >
                 <div className="w-10 h-10 bg-black flex items-center justify-center border border-black shrink-0">
-                  <span className="text-white font-bold font-mono">{userAccount.avatar}</span>
+                  <span className="text-white font-bold font-mono">U</span>
                 </div>
                 <div className="flex-1 text-left overflow-hidden whitespace-nowrap">
-                  <p className="font-black text-black text-sm truncate uppercase">{userAccount.name}</p>
-                  <p className="text-xs font-mono text-gray-600 truncate">{userAccount.email}</p>
+                  <p className="font-black text-black text-sm truncate uppercase">My Account</p>
+                  <p className="text-xs font-mono text-gray-600 truncate">Logged In</p>
                 </div>
                 <ChevronDown className="w-5 h-5 text-black shrink-0" strokeWidth={3} />
               </motion.button>
