@@ -13,11 +13,37 @@ export default function AuthPages() {
   const [fullName, setFullName] = useState('');
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  
+  // Tentukan action berdasarkan state isSignIn
+  const actionType = isSignIn ? 'login' : 'register';
+
+  const res = await fetch('/api/auth', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      action: actionType, // <--- Kunci penggabungan ada di sini
+      email: email,
+      password: password,
+      fullName: isSignIn ? undefined : fullName, // fullName hanya dikirim saat register
+    }),
+  });
+
+  const data = await res.json();
+
+  if (res.ok) {
+    // Redirect atau simpan state login
+    console.log('Success:', data);
     router.push("/dashboard");
-    e.preventDefault();
-    console.log('Submit:', { email, password, fullName });
-  };
+  } else {
+    // Tampilkan error
+    console.error('Error:', data.message);
+    alert(data.message);
+  }
+};
 
   return (
     <div className="min-h-screen bg-[#FFF8DC] flex items-center justify-center p-6 relative overflow-hidden">
