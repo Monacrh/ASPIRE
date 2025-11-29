@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Star, ChevronRight, Hash, Zap, DollarSign, Cpu, MapPin, Clock, RefreshCw } from 'lucide-react';
+import BookLoader from '@/src/app/components/loader';
 
 // --- DATA STRUCTURE ---
 interface Recommendation {
@@ -200,6 +201,9 @@ export default function ResultPage() {
   
   const selectedItem = recommendations.find(r => r.id === selectedId);
 
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState(null);
+
   // Scroll to top when selection changes
   useEffect(() => {
     if (selectedId) {
@@ -218,6 +222,18 @@ export default function ResultPage() {
         setSelectedId(null); 
     }, 1500);
   };
+
+  useEffect(() => {
+    // Simulasi fetch data
+    setTimeout(() => {
+      setData({ message: 'Data loaded!' });
+      setLoading(false);
+    }, 3000);
+  }, []);
+
+  if (loading) {
+    return <BookLoader />;
+  }
 
   // --- CHART LOGIC ---
   const chartData = recommendations.reduce((acc, slice) => {

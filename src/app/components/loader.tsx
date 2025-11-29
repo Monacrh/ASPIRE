@@ -2,7 +2,7 @@ import React from 'react';
 
 const BookLoader: React.FC = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-50">
+    <div className="flex items-center justify-center min-h-screen bg-[#FFF8DC]">
       <div className="relative w-[200px] h-[140px]">
         {/* Shadow elements */}
         <div className="absolute bottom-2 left-1 w-[120px] top-[80%] shadow-[0_16px_12px_rgba(39,94,254,0.28)] -rotate-[6deg]" />
