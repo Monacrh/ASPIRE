@@ -1,11 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Star, ChevronRight, Hash, Zap, DollarSign, Cpu, MapPin, Clock, RefreshCw } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import BookLoader from '@/src/app/components/loader';
 
-// --- DATA STRUCTURE ---
+// Interface sesuai dengan yang kita minta ke LLM
 interface Recommendation {
   id: string;
   name: string;
@@ -42,200 +43,95 @@ interface Recommendation {
   similarCareers: string[];
 }
 
-const recommendations: Recommendation[] = [
-  {
-    id: '1',
-    name: 'Software Engineer',
-    percentage: 40, // Changed from 85
-    color: '#FFD93D',
-    description: 'You are the architect of the digital world. While others see only pixels, you see the matrix. You enjoy building complex systems from scratch, debugging reality, and drinking excessive amounts of coffee.',
-    details: ['System Design', 'Algorithms', 'Full-Stack', 'Cloud Ops'],
-    tags: ['High Demand', 'Builder'],
-    salary: '$80k - $150k',
-    tools: ['VS Code', 'Docker', 'Git', 'Jira'],
-    stats: { logic: 95, creativity: 60, social: 40 },
-    careerPath: [
-      { level: 'Junior Dev', years: '0-2y' },
-      { level: 'Mid-Level', years: '2-5y' },
-      { level: 'Senior', years: '5-8y' },
-      { level: 'Lead/Architect', years: '8y+' }
-    ],
-    dayInLife: [
-      { activity: 'Coding', percentage: 45 },
-      { activity: 'Meetings', percentage: 20 },
-      { activity: 'Code Review', percentage: 15 },
-      { activity: 'Learning', percentage: 20 }
-    ],
-    growthMetrics: {
-      demand: 95,
-      growth: '+28% yearly',
-      trend: 'rising'
-    },
-    industries: ['Tech Startups', 'Finance', 'E-commerce', 'Gaming', 'AI/ML'],
-    learningResources: [
-      { platform: 'LeetCode', type: 'Practice' },
-      { platform: 'System Design Primer', type: 'Course' },
-      { platform: 'Clean Code Book', type: 'Reading' }
-    ],
-    similarCareers: ['DevOps Engineer', 'Backend Specialist', 'Cloud Architect']
-  },
-  {
-    id: '2',
-    name: 'Data Scientist',
-    percentage: 30, // Changed from 72
-    color: '#FF90E8',
-    description: 'You are a modern-day oracle. You see patterns where others see chaos. Using math and statistics to predict the future is your superpower, turning raw numbers into actionable gold.',
-    details: ['Machine Learning', 'Statistics', 'Python / R', 'Big Data'],
-    tags: ['Analytical', 'Math'],
-    salary: '$90k - $160k',
-    tools: ['Jupyter', 'TensorFlow', 'Tableau', 'SQL'],
-    stats: { logic: 90, creativity: 50, social: 50 },
-    careerPath: [
-      { level: 'Analyst', years: '0-2y' },
-      { level: 'Data Scientist', years: '2-4y' },
-      { level: 'Senior DS', years: '4-7y' },
-      { level: 'ML/AI Lead', years: '7y+' }
-    ],
-    dayInLife: [
-      { activity: 'Data Analysis', percentage: 35 },
-      { activity: 'Model Building', percentage: 30 },
-      { activity: 'Stakeholder Sync', percentage: 20 },
-      { activity: 'Research', percentage: 15 }
-    ],
-    growthMetrics: {
-      demand: 92,
-      growth: '+31% yearly',
-      trend: 'rising'
-    },
-    industries: ['Healthcare', 'Finance', 'Marketing', 'Research', 'AI Startups'],
-    learningResources: [
-      { platform: 'Kaggle', type: 'Competition' },
-      { platform: 'Fast.ai', type: 'Course' },
-      { platform: 'Scikit-learn Docs', type: 'Documentation' }
-    ],
-    similarCareers: ['ML Engineer', 'Business Analyst', 'Research Scientist']
-  },
-  {
-    id: '3',
-    name: 'Product Manager',
-    percentage: 20, // Changed from 60
-    color: '#4DE1C1',
-    description: 'The diplomat of the tech world. You bridge the gap between code and customers. You prioritize features, manage roadmaps, and ensure the ship is steering in the right direction.',
-    details: ['Strategy', 'User Empathy', 'Scrum', 'Leadership'],
-    tags: ['Strategy', 'Social'],
-    salary: '$100k - $170k',
-    tools: ['Notion', 'Figma', 'Slack', 'Amplitude'],
-    stats: { logic: 70, creativity: 60, social: 95 },
-    careerPath: [
-      { level: 'Associate PM', years: '0-2y' },
-      { level: 'Product Manager', years: '2-5y' },
-      { level: 'Senior PM', years: '5-8y' },
-      { level: 'VP Product', years: '8y+' }
-    ],
-    dayInLife: [
-      { activity: 'Meetings', percentage: 40 },
-      { activity: 'Strategy', percentage: 25 },
-      { activity: 'User Research', percentage: 20 },
-      { activity: 'Documentation', percentage: 15 }
-    ],
-    growthMetrics: {
-      demand: 88,
-      growth: '+22% yearly',
-      trend: 'rising'
-    },
-    industries: ['SaaS', 'Fintech', 'Consumer Apps', 'Enterprise', 'Marketplaces'],
-    learningResources: [
-      { platform: 'ProductSchool', type: 'Bootcamp' },
-      { platform: 'Inspired by Cagan', type: 'Book' },
-      { platform: 'Reforge', type: 'Community' }
-    ],
-    similarCareers: ['Project Manager', 'Growth PM', 'Technical PM']
-  },
-  {
-    id: '4',
-    name: 'UX Designer',
-    percentage: 10, // Changed from 45
-    color: '#FFFFFF',
-    description: 'The user\'s champion. You ensure technology feels human, not robotic. You fight for intuitive experiences, crafting interfaces that are not just functional, but beautiful and delightful.',
-    details: ['Wireframing', 'Prototyping', 'User Research', 'Visual UI'],
-    tags: ['Creative', 'Empathy'],
-    salary: '$75k - $140k',
-    tools: ['Figma', 'Sketch', 'Maze', 'Adobe CC'],
-    stats: { logic: 40, creativity: 95, social: 80 },
-    careerPath: [
-      { level: 'Junior Designer', years: '0-2y' },
-      { level: 'UX Designer', years: '2-4y' },
-      { level: 'Senior UX', years: '4-7y' },
-      { level: 'Design Lead', years: '7y+' }
-    ],
-    dayInLife: [
-      { activity: 'Design Work', percentage: 50 },
-      { activity: 'User Testing', percentage: 20 },
-      { activity: 'Collaboration', percentage: 20 },
-      { activity: 'Research', percentage: 10 }
-    ],
-    growthMetrics: {
-      demand: 85,
-      growth: '+18% yearly',
-      trend: 'stable'
-    },
-    industries: ['Tech Companies', 'Agencies', 'Consultancy', 'Startups', 'Gaming'],
-    learningResources: [
-      { platform: 'UX Collective', type: 'Blog' },
-      { platform: 'Interaction Design', type: 'Course' },
-      { platform: 'Nielsen Norman', type: 'Certification' }
-    ],
-    similarCareers: ['UI Designer', 'Product Designer', 'UX Researcher']
-  }
-];
-// --- MATH HELPER ---
+// Math Helper
 const getCoordinatesForPercent = (percent: number) => {
   const x = Math.cos(2 * Math.PI * percent);
   const y = Math.sin(2 * Math.PI * percent);
   return [x, y];
 };
 
-export default function ResultPage() {
+function CareerResultContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const transcriptId = searchParams.get('id');
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
-  
+  const [loading, setLoading] = useState(true);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  // --- FETCH & ANALYZE LOGIC ---
+  useEffect(() => {
+    if (!transcriptId) {
+      setError("No transcript ID provided.");
+      setLoading(false);
+      return;
+    }
+
+    const processCareer = async () => {
+      try {
+        // 1. Ambil data file Transcript dari DB
+        const transcriptRes = await fetch(`/api/transcripts/${transcriptId}`);
+        if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
+        
+        const { data: transcriptData } = await transcriptRes.json();
+
+        // 2. Kirim ke LLM untuk analisis
+        const llmRes = await fetch('/api/llmcareer', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileData: transcriptData.fileData,
+            fileName: transcriptData.fileName
+          })
+        });
+
+        if (!llmRes.ok) throw new Error("Failed to generate career path");
+
+        const { data: recommendationsData } = await llmRes.json();
+        
+        // 3. Set Data
+        setRecommendations(recommendationsData);
+      } catch (err: any) {
+        console.error(err);
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    processCareer();
+  }, [transcriptId]);
+
   const selectedItem = recommendations.find(r => r.id === selectedId);
 
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState(null);
-
-  // Scroll to top when selection changes
+  // Scroll handler
   useEffect(() => {
     if (selectedId) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [selectedId]);
 
-  // Handle Regenerate / Reroll
-  const handleRegenerate = () => {
-    if (isRegenerating) return;
-    setIsRegenerating(true);
-    
-    // Simulate data fetching delay
-    setTimeout(() => {
-        setIsRegenerating(false);
-        setSelectedId(null); 
-    }, 1500);
-  };
-
-  useEffect(() => {
-    // Simulasi fetch data
-    setTimeout(() => {
-      setData({ message: 'Data loaded!' });
-      setLoading(false);
-    }, 3000);
-  }, []);
-
-  if (loading) {
-    return <BookLoader />;
+  if (loading) return <BookLoader />;
+  
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#FFF8DC]">
+        <div className="text-center p-8 bg-white border-4 border-black shadow-[8px_8px_0_black]">
+          <h2 className="text-2xl font-black mb-2">Error</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={() => router.push('/dashboard')}
+            className="px-6 py-2 bg-[#FFD93D] border-2 border-black font-bold shadow-[4px_4px_0_black] hover:translate-y-1 hover:shadow-none transition-all"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
   }
 
-  // --- CHART LOGIC ---
+  // Chart Data Logic
   const chartData = recommendations.reduce((acc, slice) => {
     const total = recommendations.reduce((sum, item) => sum + item.percentage, 0);
     const slicePercent = slice.percentage / total;
@@ -263,12 +159,9 @@ export default function ResultPage() {
   return (
     <div className="min-h-screen w-full bg-[#FFF8DC] font-sans text-black relative flex flex-col pb-10">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex items-center justify-between p-6 z-20">
-            <motion.div 
-                className="flex items-center gap-3"
-                animate={{ opacity: 1 }}
-            >
+            <motion.div className="flex items-center gap-3" animate={{ opacity: 1 }}>
                 {selectedId ? (
                      <button 
                         onClick={() => setSelectedId(null)}
@@ -292,7 +185,7 @@ export default function ResultPage() {
             </div>
       </div>
 
-      {/* --- CHART AREA --- */}
+      {/* CHART AREA */}
       <motion.div 
         className="w-full flex flex-col items-center justify-center relative z-10"
         animate={{ 
@@ -301,37 +194,10 @@ export default function ResultPage() {
         }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
       >
-           {/* === REGENERATE BUTTON === */}
-           <AnimatePresence>
-            {!selectedId && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    // Positioned top-right relative to the container
-                    className="absolute top-4 right-4 md:top-10 md:right-10 z-30"
-                >
-                    <button
-                        onClick={handleRegenerate}
-                        disabled={isRegenerating}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[2px_2px_0_black] hover:translate-x-0.5 hover:translate-y-0.5 transition-all active:shadow-none active:translate-x-1 active:translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed group"
-                    >
-                        <RefreshCw 
-                            className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} 
-                        />
-                        <span className="font-black text-sm uppercase hidden md:inline">Reroll</span>
-                    </button>
-                </motion.div>
-            )}
-           </AnimatePresence>
-
-           {/* Chart SVG */}
            <motion.div
              className="relative aspect-square"
              animate={{ 
-                width: selectedId ? '200px' : 'min(90vw, 450px)',
-                opacity: isRegenerating ? 0.5 : 1, 
-                scale: isRegenerating ? 0.95 : 1
+                width: selectedId ? '200px' : 'min(90vw, 450px)'
              }}
              transition={{ duration: 0.3 }}
            >
@@ -383,9 +249,8 @@ export default function ResultPage() {
                 </svg>
            </motion.div>
 
-           {/* Call to Action Text (Outside Chart) */}
            <AnimatePresence>
-            {!selectedId && !isRegenerating && (
+            {!selectedId && (
                 <motion.div 
                     initial={{ opacity: 0, y: -20 }} 
                     animate={{ opacity: 1, y: 0 }}
@@ -400,22 +265,10 @@ export default function ResultPage() {
                     </div>
                 </motion.div>
             )}
-             {/* Loading State Text */}
-             {!selectedId && isRegenerating && (
-                <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}
-                    className="mt-8 text-center"
-                >
-                    <span className="font-black text-sm uppercase tracking-widest animate-pulse">
-                        Generating New Paths...
-                    </span>
-                </motion.div>
-            )}
            </AnimatePresence>
       </motion.div>
 
-      {/* --- CONTENT AREA (Bento Grid Layout) --- */}
+      {/* CONTENT AREA */}
       <AnimatePresence mode="wait">
         {selectedItem && (
             <motion.div
@@ -444,7 +297,6 @@ export default function ResultPage() {
                         </p>
                     </div>
                     
-                    {/* Salary Box */}
                     <div className="bg-[#4DE1C1] border-4 border-black p-4 shadow-[8px_8px_0_black] rotate-1 md:rotate-3 shrink-0 w-full md:w-auto">
                         <div className="flex items-center gap-2 mb-1 justify-center md:justify-start">
                             <DollarSign className="w-5 h-5" />
@@ -456,12 +308,11 @@ export default function ResultPage() {
                     </div>
                 </div>
 
-                {/* BENTO GRID LAYOUT */}
+                {/* BENTO GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-20">
                     
-                    {/* COL 1: STATS & GROWTH (Span 4) */}
+                    {/* STATS & GROWTH */}
                     <div className="md:col-span-4 space-y-6">
-                        {/* Stats */}
                         <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
                              <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
                                 <Cpu className="w-5 h-5" /> Attributes
@@ -487,11 +338,8 @@ export default function ResultPage() {
                              </div>
                         </div>
 
-                        {/* Market Data */}
                         <div className="bg-black text-white p-5 border-4 border-black shadow-[6px_6px_0_gray]">
-                            <h3 className="font-black uppercase text-lg mb-4 text-[#FF90E8]">
-                                Market Data
-                            </h3>
+                            <h3 className="font-black uppercase text-lg mb-4 text-[#FF90E8]">Market Data</h3>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="p-3 border-2 border-white/20">
                                     <div className="text-[10px] font-bold uppercase text-gray-400">Demand</div>
@@ -503,7 +351,7 @@ export default function ResultPage() {
                                 </div>
                             </div>
                             <div className="mt-4 pt-4 border-t-2 border-white/20 flex justify-between items-center">
-                                <span className="text-xs font-bold uppercase">Current Trend:</span>
+                                <span className="text-xs font-bold uppercase">Trend:</span>
                                 <span className="px-2 py-1 bg-[#FFD93D] text-black text-xs font-black uppercase">
                                     {selectedItem.growthMetrics.trend}
                                 </span>
@@ -511,9 +359,8 @@ export default function ResultPage() {
                         </div>
                     </div>
 
-                    {/* COL 2: MAIN INFO (Span 5) */}
+                    {/* MAIN INFO */}
                     <div className="md:col-span-5 space-y-6">
-                         {/* Core Abilities */}
                          <div className="bg-[#FF90E8] border-4 border-black p-5 shadow-[6px_6px_0_black]">
                             <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
                                 <Zap className="w-5 h-5" /> Core Skills
@@ -527,7 +374,6 @@ export default function ResultPage() {
                             </div>
                         </div>
 
-                        {/* Career Path Timeline */}
                         <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
                             <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
                                 <MapPin className="w-5 h-5" /> Career Roadmap
@@ -543,7 +389,6 @@ export default function ResultPage() {
                             </div>
                         </div>
 
-                        {/* Daily Routine */}
                          <div className="bg-[#F3F4F6] border-4 border-black p-5 shadow-[6px_6px_0_black]">
                             <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
                                 <Clock className="w-5 h-5" /> Daily Split
@@ -558,7 +403,6 @@ export default function ResultPage() {
                                             backgroundColor: idx % 2 === 0 ? selectedItem.color : '#FFF' 
                                         }}
                                     >
-                                        {/* Tooltip on hover */}
                                         <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-[10px] font-bold uppercase px-2 py-1 opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">
                                             {item.activity}: {item.percentage}%
                                         </div>
@@ -576,13 +420,10 @@ export default function ResultPage() {
                         </div>
                     </div>
 
-                    {/* COL 3: TOOLS & RESOURCES (Span 3) */}
+                    {/* TOOLS & RESOURCES */}
                     <div className="md:col-span-3 space-y-6">
-                        {/* Tools */}
                         <div className="bg-white border-4 border-black p-4 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">
-                                Toolkit
-                            </h3>
+                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">Toolkit</h3>
                             <div className="flex flex-col gap-2">
                                 {selectedItem.tools.map((tool) => (
                                     <div key={tool} className="flex items-center gap-2 text-sm font-bold">
@@ -592,11 +433,8 @@ export default function ResultPage() {
                             </div>
                         </div>
 
-                         {/* Resources */}
                          <div className="bg-[#FFD93D] border-4 border-black p-4 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">
-                                Learn At
-                            </h3>
+                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">Learn At</h3>
                             <ul className="space-y-3">
                                 {selectedItem.learningResources.map((res, i) => (
                                     <li key={i} className="bg-white border-2 border-black p-2 text-xs">
@@ -607,11 +445,8 @@ export default function ResultPage() {
                             </ul>
                         </div>
 
-                        {/* Similar */}
                         <div className="bg-white border-4 border-black p-4 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">
-                                Similar
-                            </h3>
+                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">Similar</h3>
                             <div className="space-y-2">
                                 {selectedItem.similarCareers.map((c, i) => (
                                     <div key={i} className="text-xs font-bold hover:underline cursor-pointer flex items-center gap-1">
@@ -623,12 +458,18 @@ export default function ResultPage() {
                     </div>
 
                 </div>
-
-                 {/* CTA Footer REMOVED as requested */}
-
             </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+// Wrapper Suspense Wajib di Next.js 13+ untuk useSearchParams
+export default function ResultPage() {
+  return (
+    <Suspense fallback={<BookLoader />}>
+      <CareerResultContent />
+    </Suspense>
   );
 }
