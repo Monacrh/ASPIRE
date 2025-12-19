@@ -6,7 +6,6 @@ import { ArrowLeft, Star, ChevronRight, Hash, Zap, DollarSign, Cpu, MapPin, Cloc
 import { useSearchParams, useRouter } from 'next/navigation';
 import BookLoader from '@/src/app/components/loader';
 
-// Interface sesuai dengan yang kita minta ke LLM
 interface Recommendation {
   id: string;
   name: string;
@@ -43,7 +42,6 @@ interface Recommendation {
   similarCareers: string[];
 }
 
-// Math Helper
 const getCoordinatesForPercent = (percent: number) => {
   const x = Math.cos(2 * Math.PI * percent);
   const y = Math.sin(2 * Math.PI * percent);
@@ -59,60 +57,83 @@ function CareerResultContent() {
   const [loading, setLoading] = useState(true);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false); // NEW STATE
+  const [transcriptData, setTranscriptData] = useState<any>(null); // Store transcript data for reroll
 
   // --- FETCH & ANALYZE LOGIC ---
-  useEffect(() => {
+  const fetchRecommendations = async (forceRegenerate = false) => {
     if (!transcriptId) {
       setError("No transcript ID provided.");
       setLoading(false);
       return;
     }
 
-    const processCareer = async () => {
-      try {
-        // 1. Ambil data file Transcript dari DB
-        const transcriptRes = await fetch(`/api/transcripts/${transcriptId}`);
-        if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
-        
-        const { data: transcriptData } = await transcriptRes.json();
+    try {
+      setLoading(true);
+      
+      // 1. Ambil data file Transcript dari DB
+      const transcriptRes = await fetch(`/api/transcripts/${transcriptId}`);
+      if (!transcriptRes.ok) throw new Error("Failed to fetch transcript file");
+      
+      const { data: fetchedTranscriptData } = await transcriptRes.json();
+      setTranscriptData(fetchedTranscriptData); // Store for reroll
 
-        // 2. Kirim ke LLM untuk analisis
-        const llmRes = await fetch('/api/llmcareer', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileData: transcriptData.fileData,
-            fileName: transcriptData.fileName
-          })
-        });
+      // 2. Kirim ke LLM untuk analisis
+      const llmRes = await fetch('/api/llmcareer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: fetchedTranscriptData.fileData,
+          fileName: fetchedTranscriptData.fileName,
+          transcriptId: transcriptId,
+          forceRegenerate: forceRegenerate // Flag untuk paksa generate ulang
+        })
+      });
 
-        if (!llmRes.ok) throw new Error("Failed to generate career path");
-
-        const { data: recommendationsData } = await llmRes.json();
-        
-        // 3. Set Data
-        setRecommendations(recommendationsData);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message || "An error occurred");
-      } finally {
-        setLoading(false);
+      if (!llmRes.ok) {
+        const errorData = await llmRes.json();
+        throw new Error(errorData.message || "Failed to generate career path");
       }
-    };
 
-    processCareer();
+      const { data: recommendationsData, cached } = await llmRes.json();
+      
+      console.log(cached ? "📦 Loaded from cache" : "✨ Freshly generated");
+      
+      // 3. Set Data
+      setRecommendations(recommendationsData);
+      setError(null);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An error occurred");
+    } finally {
+      setLoading(false);
+      setIsRegenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecommendations(false); // Load on mount (use cache if available)
   }, [transcriptId]);
+
+  // --- REROLL HANDLER ---
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    
+    setIsRegenerating(true);
+    setSelectedId(null); // Reset selection
+    
+    await fetchRecommendations(true); // Force regenerate
+  };
 
   const selectedItem = recommendations.find(r => r.id === selectedId);
 
-  // Scroll handler
   useEffect(() => {
     if (selectedId) {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [selectedId]);
 
-  if (loading) return <BookLoader />;
+  if (loading && !isRegenerating) return <BookLoader />;
   
   if (error) {
     return (
@@ -131,7 +152,6 @@ function CareerResultContent() {
     );
   }
 
-  // Chart Data Logic
   const chartData = recommendations.reduce((acc, slice) => {
     const total = recommendations.reduce((sum, item) => sum + item.percentage, 0);
     const slicePercent = slice.percentage / total;
@@ -161,152 +181,190 @@ function CareerResultContent() {
       
       {/* HEADER */}
       <div className="flex items-center justify-between p-6 z-20">
-            <motion.div className="flex items-center gap-3" animate={{ opacity: 1 }}>
-                {selectedId ? (
-                     <button 
-                        onClick={() => setSelectedId(null)}
-                        className="w-12 h-12 bg-black text-white border-4 border-black shadow-[4px_4px_0_white] flex items-center justify-center hover:-translate-y-1 transition-transform"
-                    >
-                        <ArrowLeft className="w-6 h-6" strokeWidth={3} />
-                    </button>
-                ) : (
-                    <button className="w-12 h-12 bg-white border-4 border-black shadow-[4px_4px_0_black] flex items-center justify-center">
-                        <Star className="w-6 h-6" strokeWidth={3} />
-                    </button>
-                )}
-               
-                <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter">
-                    Result<span className="text-[#FF6B6B]">.</span>
-                </h1>
-            </motion.div>
-            
-            <div className="hidden md:block px-4 py-2 bg-[#FF90E8] border-4 border-black font-black uppercase shadow-[4px_4px_0_black] transform rotate-2">
-                Career
-            </div>
+        <motion.div className="flex items-center gap-3" animate={{ opacity: 1 }}>
+          {selectedId ? (
+            <button 
+              onClick={() => setSelectedId(null)}
+              className="w-12 h-12 bg-black text-white border-4 border-black shadow-[4px_4px_0_white] flex items-center justify-center hover:-translate-y-1 transition-transform"
+            >
+              <ArrowLeft className="w-6 h-6" strokeWidth={3} />
+            </button>
+          ) : (
+            <button className="w-12 h-12 bg-white border-4 border-black shadow-[4px_4px_0_black] flex items-center justify-center">
+              <Star className="w-6 h-6" strokeWidth={3} />
+            </button>
+          )}
+          
+          <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter">
+            Result<span className="text-[#FF6B6B]">.</span>
+          </h1>
+        </motion.div>
+        
+        <div className="hidden md:block px-4 py-2 bg-[#FF90E8] border-4 border-black font-black uppercase shadow-[4px_4px_0_black] transform rotate-2">
+          Career
+        </div>
       </div>
 
       {/* CHART AREA */}
       <motion.div 
         className="w-full flex flex-col items-center justify-center relative z-10"
         animate={{ 
-            height: selectedId ? '300px' : '65vh',
-            marginBottom: selectedId ? '20px' : '0px'
+          height: selectedId ? '300px' : '65vh',
+          marginBottom: selectedId ? '20px' : '0px'
         }}
         transition={{ type: 'spring', stiffness: 100, damping: 20 }}
       >
-           <motion.div
-             className="relative aspect-square"
-             animate={{ 
-                width: selectedId ? '200px' : 'min(90vw, 450px)'
-             }}
-             transition={{ duration: 0.3 }}
-           >
-                <svg 
-                    viewBox="-1.05 -1.05 2.1 2.1" 
-                    className="w-full h-full overflow-visible drop-shadow-xl" 
-                    style={{ transform: 'rotate(-90deg)' }}
-                >
-                    {chartData.map((slice: any) => {
-                    const isSelected = selectedId === slice.id;
-                    const isDimmed = selectedId && !isSelected;
+        {/* === REGENERATE BUTTON === */}
+        <AnimatePresence>
+          {!selectedId && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
+              className="absolute top-4 right-4 md:top-10 md:right-10 z-30"
+            >
+              <button
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
+                className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[2px_2px_0_black] hover:translate-x-0.5 hover:translate-y-0.5 transition-all active:shadow-none active:translate-x-1 active:translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed group"
+              >
+                <RefreshCw 
+                  className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} 
+                />
+                <span className="font-black text-sm uppercase hidden md:inline">Reroll</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-                    return (
-                        <motion.g 
-                            key={slice.id}
-                            onClick={() => setSelectedId(isSelected ? null : slice.id)}
-                            className="cursor-pointer"
-                            animate={{ 
-                                opacity: isDimmed ? 0.3 : 1,
-                                scale: isSelected ? 1.05 : 1,
-                                filter: isDimmed ? 'grayscale(100%)' : 'none'
-                            }}
-                            whileHover={{ scale: 1.05 }}
-                        >
-                            <path 
-                                d={slice.pathData} 
-                                fill={slice.color} 
-                                stroke="#000000" 
-                                strokeWidth="0.04" 
-                            />
-                            {(slice.percentage >= 10 || (selectedId && isSelected)) && (
-                                <text
-                                    x={slice.labelX}
-                                    y={slice.labelY}
-                                    fill="#000000"
-                                    fontSize={selectedId ? "0.15" : "0.12"}
-                                    fontWeight="900"
-                                    textAnchor="middle"
-                                    alignmentBaseline="middle"
-                                    transform={`rotate(90 ${slice.labelX} ${slice.labelY})`}
-                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                    {slice.percentage}%
-                                </text>
-                            )}
-                        </motion.g>
-                    );
-                    })}
-                </svg>
-           </motion.div>
+        <motion.div
+          className="relative aspect-square"
+          animate={{ 
+            width: selectedId ? '200px' : 'min(90vw, 450px)',
+            opacity: isRegenerating ? 0.5 : 1,
+            scale: isRegenerating ? 0.95 : 1
+          }}
+          transition={{ duration: 0.3 }}
+        >
+          <svg 
+            viewBox="-1.05 -1.05 2.1 2.1" 
+            className="w-full h-full overflow-visible drop-shadow-xl" 
+            style={{ transform: 'rotate(-90deg)' }}
+          >
+            {chartData.map((slice: any) => {
+              const isSelected = selectedId === slice.id;
+              const isDimmed = selectedId && !isSelected;
 
-           <AnimatePresence>
-            {!selectedId && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -20 }} 
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: 0.2 }}
-                    className="mt-8 text-center"
+              return (
+                <motion.g 
+                  key={slice.id}
+                  onClick={() => !isRegenerating && setSelectedId(isSelected ? null : slice.id)}
+                  className="cursor-pointer"
+                  animate={{ 
+                    opacity: isDimmed ? 0.3 : 1,
+                    scale: isSelected ? 1.05 : 1,
+                    filter: isDimmed ? 'grayscale(100%)' : 'none'
+                  }}
+                  whileHover={{ scale: 1.05 }}
                 >
-                    <div className="inline-block px-6 py-3 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] transition-shadow cursor-default">
-                        <span className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
-                             Choose a Path 👆
-                        </span>
-                    </div>
-                </motion.div>
-            )}
-           </AnimatePresence>
+                  <path 
+                    d={slice.pathData} 
+                    fill={slice.color} 
+                    stroke="#000000" 
+                    strokeWidth="0.04" 
+                  />
+                  {(slice.percentage >= 10 || (selectedId && isSelected)) && (
+                    <text
+                      x={slice.labelX}
+                      y={slice.labelY}
+                      fill="#000000"
+                      fontSize={selectedId ? "0.15" : "0.12"}
+                      fontWeight="900"
+                      textAnchor="middle"
+                      alignmentBaseline="middle"
+                      transform={`rotate(90 ${slice.labelX} ${slice.labelY})`}
+                      style={{ pointerEvents: 'none', userSelect: 'none' }}
+                    >
+                      {slice.percentage}%
+                    </text>
+                  )}
+                </motion.g>
+              );
+            })}
+          </svg>
+        </motion.div>
+
+        <AnimatePresence>
+          {!selectedId && !isRegenerating && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }} 
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ delay: 0.2 }}
+              className="mt-8 text-center"
+            >
+              <div className="inline-block px-6 py-3 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] transition-shadow cursor-default">
+                <span className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                  Choose a Path 👆
+                </span>
+              </div>
+            </motion.div>
+          )}
+          
+          {/* Loading State for Regeneration */}
+          {!selectedId && isRegenerating && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="mt-8 text-center"
+            >
+              <span className="font-black text-sm uppercase tracking-widest animate-pulse">
+                Regenerating...
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
-      {/* CONTENT AREA */}
+      {/* CONTENT AREA - Same as before */}
       <AnimatePresence mode="wait">
         {selectedItem && (
-            <motion.div
-                key={selectedItem.id}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-                className="w-full max-w-6xl mx-auto px-4 sm:px-6"
-            >
-                {/* IDENTITY HEADER */}
-                <div className="mb-8 text-center md:text-left flex flex-col md:flex-row items-end gap-6 border-b-4 border-black pb-8">
-                    <div className="flex-1">
-                        <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-3">
-                            {selectedItem.tags.map((tag) => (
-                                <span key={tag} className="px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wider transform -skew-x-12">
-                                    {tag}
-                                </span>
-                            ))}
-                        </div>
-                        <h2 className="text-4xl md:text-6xl font-black uppercase leading-[0.9] mb-4">
-                            {selectedItem.name}
-                        </h2>
-                        <p className="text-lg md:text-xl font-bold leading-relaxed text-gray-700 max-w-2xl">
-                            {selectedItem.description}
-                        </p>
-                    </div>
-                    
-                    <div className="bg-[#4DE1C1] border-4 border-black p-4 shadow-[8px_8px_0_black] rotate-1 md:rotate-3 shrink-0 w-full md:w-auto">
-                        <div className="flex items-center gap-2 mb-1 justify-center md:justify-start">
-                            <DollarSign className="w-5 h-5" />
-                            <span className="font-black uppercase text-sm">Avg. Salary</span>
-                        </div>
-                        <div className="font-mono font-black text-2xl md:text-3xl text-center md:text-right">
-                            {selectedItem.salary}
-                        </div>
-                    </div>
+          <motion.div
+            key={selectedItem.id}
+            initial={{ opacity: 0, y: 50 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.4, ease: "easeOut" }}
+            className="w-full max-w-6xl mx-auto px-4 sm:px-6"
+          >
+            {/* Rest of the bento grid content - same as your original code */}
+            <div className="mb-8 text-center md:text-left flex flex-col md:flex-row items-end gap-6 border-b-4 border-black pb-8">
+              <div className="flex-1">
+                <div className="flex flex-wrap gap-2 justify-center md:justify-start mb-3">
+                  {selectedItem.tags.map((tag) => (
+                    <span key={tag} className="px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wider transform -skew-x-12">
+                      {tag}
+                    </span>
+                  ))}
                 </div>
+                <h2 className="text-4xl md:text-6xl font-black uppercase leading-[0.9] mb-4">
+                  {selectedItem.name}
+                </h2>
+                <p className="text-lg md:text-xl font-bold leading-relaxed text-gray-700 max-w-2xl">
+                  {selectedItem.description}
+                </p>
+              </div>
+              
+              <div className="bg-[#4DE1C1] border-4 border-black p-4 shadow-[8px_8px_0_black] rotate-1 md:rotate-3 shrink-0 w-full md:w-auto">
+                <div className="flex items-center gap-2 mb-1 justify-center md:justify-start">
+                  <DollarSign className="w-5 h-5" />
+                  <span className="font-black uppercase text-sm">Avg. Salary</span>
+                </div>
+                <div className="font-mono font-black text-2xl md:text-3xl text-center md:text-right">
+                  {selectedItem.salary}
+                </div>
+              </div>
+            </div>
 
                 {/* BENTO GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-20">
@@ -465,7 +523,6 @@ function CareerResultContent() {
   );
 }
 
-// Wrapper Suspense Wajib di Next.js 13+ untuk useSearchParams
 export default function ResultPage() {
   return (
     <Suspense fallback={<BookLoader />}>
