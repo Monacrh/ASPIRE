@@ -273,7 +273,7 @@ function CareerResultContent() {
                     stroke="#000000" 
                     strokeWidth="0.04" 
                   />
-                  {(slice.percentage >= 10 || (selectedId && isSelected)) && (
+                  {(slice.percentage >= 4 || (selectedId && isSelected)) && (
                     <text
                       x={slice.labelX}
                       y={slice.labelY}
