@@ -303,11 +303,11 @@ function CareerResultContent() {
               transition={{ delay: 0.2 }}
               className="mt-8 text-center"
             >
-              <div className="inline-block px-6 py-3 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] transition-shadow cursor-default">
+              {/* <div className="inline-block px-6 py-3 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] transition-shadow cursor-default">
                 <span className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
                   Choose a Path 👆
                 </span>
-              </div>
+              </div> */}
             </motion.div>
           )}
           

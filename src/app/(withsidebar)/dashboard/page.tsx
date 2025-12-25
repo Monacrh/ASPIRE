@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Upload, FileText, BookOpen, Briefcase, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { useSWRConfig } from 'swr'; // 1. Import hook dari SWR
 
 export default function Dashboard() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -11,7 +12,9 @@ export default function Dashboard() {
   const [isDragging, setIsDragging] = useState(false);
   const router = useRouter();
   const [isUploading, setIsUploading] = useState(false);
-
+  
+  // 2. Ambil fungsi mutate global
+  const { mutate } = useSWRConfig(); 
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -49,12 +52,10 @@ export default function Dashboard() {
     setIsUploading(true);
 
     try {
-      // 1. Buat FormData
       const formData = new FormData();
       formData.append('file', selectedFile);
       formData.append('type', selectedType);
 
-      // 2. Panggil API POST
       const res = await fetch('/api/transcripts', {
         method: 'POST',
         body: formData,
@@ -68,8 +69,10 @@ export default function Dashboard() {
 
       console.log('Upload success, ID:', data.id);
       
-      // 3. Redirect ke halaman result yang sesuai
-      // Kita bisa mengirim ID transcript lewat URL query param jika perlu
+      // 3. TRIGGER REFRESH SIDEBAR
+      // Ini akan menyuruh komponen lain yang pakai key ini (Sidebar) untuk fetch ulang
+      mutate('/api/transcripts'); 
+
       router.push(`/result/${selectedType}?id=${data.id}`);
 
     } catch (error) {

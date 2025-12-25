@@ -1,51 +1,30 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import { Transcript } from '@/src/types/transcript'; // Import tipe data
+import { Transcript } from '@/src/types/transcript';
+import useSWR from 'swr'; // 1. Import SWR
+
+// 2. Buat fungsi fetcher sederhana
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function RetroSidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
+
+  // 3. Gunakan useSWR untuk mengambil data secara otomatis & realtime
+  // Key '/api/transcripts' ini nanti akan kita "senggol" dari dashboard agar refresh
+  const { data: apiResponse, isLoading } = useSWR('/api/transcripts', fetcher);
+
+  // 4. Olah data dari response SWR
+  // Jika apiResponse belum ada (undefined), anggap array kosong
+  const transcripts = apiResponse?.data || [];
   
-  // State untuk menyimpan data asli
-  const [courses, setCourses] = useState<Transcript[]>([]);
-  const [careers, setCareers] = useState<Transcript[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState({ name: 'Guest', email: '' }); // State user
-
-  // --- FETCH DATA SAAT KOMPONEN DIMUAT ---
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // 1. Ambil Data Transkrip
-        const res = await fetch('/api/transcripts');
-        if (res.ok) {
-          const { data } = await res.json();
-          
-          // Pisahkan data berdasarkan tipe (course vs career)
-          const courseList = data.filter((t: Transcript) => t.recommendationType === 'course');
-          const careerList = data.filter((t: Transcript) => t.recommendationType === 'career');
-          
-          setCourses(courseList);
-          setCareers(careerList);
-        }
-
-        // 2. (Opsional) Ambil data User dari Auth API (jika ada endpoint profile)
-        // Untuk sekarang kita bisa ambil dari localStorage atau decode token di client
-        // Tapi untuk demo, kita biarkan default atau ambil dari props jika ada.
-        
-      } catch (error) {
-        console.error("Gagal mengambil history:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []); // Array kosong = jalan sekali saat mount
+  // Filter data seperti sebelumnya
+  const courses = transcripts.filter((t: Transcript) => t.recommendationType === 'course');
+  const careers = transcripts.filter((t: Transcript) => t.recommendationType === 'career');
 
   // Helper untuk format tanggal sederhana
   const formatDate = (dateString: Date) => {
@@ -55,7 +34,6 @@ export default function RetroSidebar() {
 
   // Helper untuk redirect ke halaman result
   const handleNavigate = (type: 'course' | 'career', id: string) => {
-    // Arahkan ke halaman result dengan ID transcript
     router.push(`/result/${type}?id=${id}`);
   };
 
@@ -203,18 +181,17 @@ export default function RetroSidebar() {
           >
             
             {/* Section: Courses */}
-            {/* Tampilkan hanya jika ada data courses atau sedang loading */}
-            {(courses.length > 0 || loading) && (
+            {(courses.length > 0 || isLoading) && (
               <motion.div variants={itemVariants} className="space-y-3">
                 <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform -rotate-1 shadow-[2px_2px_0px_rgba(77,225,193,1)]">
                   <BookOpen className="w-4 h-4" />
                   <h2 className="font-bold text-xs uppercase tracking-widest">Courses</h2>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                    <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
                 ) : (
-                  courses.map((item) => (
+                  courses.map((item: Transcript) => (
                     <motion.button
                       onClick={() => handleNavigate('course', item._id!.toString())}
                       key={item._id?.toString()}
@@ -225,7 +202,6 @@ export default function RetroSidebar() {
                     >
                       <div className="absolute top-0 left-0 w-2 h-full bg-[#FF90E8] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
                       <div className="pl-1 group-hover:pl-3 transition-all duration-200">
-                        {/* Tampilkan nama file sebagai judul */}
                         <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
                         <div className="flex items-center gap-1 text-xs font-mono text-gray-600 bg-gray-100 w-max px-1 border border-black">
                           <Clock className="w-3 h-3" />
@@ -239,17 +215,17 @@ export default function RetroSidebar() {
             )}
 
             {/* Section: Career */}
-            {(careers.length > 0 || loading) && (
+            {(careers.length > 0 || isLoading) && (
               <motion.div variants={itemVariants} className="space-y-3">
                 <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform rotate-1 shadow-[2px_2px_0px_#FFD93D]">
                   <Briefcase className="w-4 h-4" />
                   <h2 className="font-bold text-xs uppercase tracking-widest">Career</h2>
                 </div>
 
-                {loading ? (
+                {isLoading ? (
                    <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
                 ) : (
-                  careers.map((item) => (
+                  careers.map((item: Transcript) => (
                     <motion.button
                       onClick={() => handleNavigate('career', item._id!.toString())}
                       key={item._id?.toString()}
