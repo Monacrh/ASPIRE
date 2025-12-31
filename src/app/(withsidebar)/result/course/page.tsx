@@ -1,196 +1,122 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-// Menambahkan RefreshCw ke import
-import { ArrowLeft, Brain, Target, BarChart, FileText, RefreshCw } from 'lucide-react';
+// Icons
+import { ArrowLeft, RefreshCw, BarChart3, TrendingUp, Award, CheckCircle2, MousePointerClick, Globe, MonitorPlay, FileText, Code2, Lightbulb } from 'lucide-react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import BookLoader from '@/src/app/components/loader';
 
-// --- ELECTIVE COURSE DATA STRUCTURE ---
-interface ElectiveCourse {
-  id: string;
-  code: string; // Course Code, e.g., IF4092
-  title: string;
-  credits: number; // SKS
-  percentage: number; // Match Score based on transcript
-  color: string;
-  description: string;
-  level: 'Undergraduate' | 'Master' | 'Specialization';
-  tags: string[];
-  skills: string[]; // Competencies gained
-  // CLO Logic: 4 CLOs, each 4 weeks
-  clos: {
-    id: number;
-    weeks: string;
-    title: string;
-    description: string;
-  }[];
-  composition: {
-    type: string;
-    percentage: number;
-  }[];
-  stats: {
-    theory: number;
-    project: number;
-    exam: number;
-  };
-  prerequisites: string[];
+// --- TIPE DATA ---
+interface EvidenceItem {
+  subject: string;
+  grade: string;
 }
 
-const electiveCourses: ElectiveCourse[] = [
-  {
-    id: '1',
-    code: 'CS4092',
-    title: 'Advanced Generative AI',
-    credits: 3,
-    percentage: 40, // Changed from 92
-    color: '#FFD93D',
-    description: 'An elective to dive deep into Transformer architectures and LLMs. You will learn model fine-tuning, RAG systems, and AI ethics. Highly recommended based on your high grades in Linear Algebra and Probability.',
-    level: 'Undergraduate',
-    tags: ['Trending', 'High Relevance'],
-    skills: ['PyTorch', 'Hugging Face', 'Prompt Eng', 'Vector DB'],
-    clos: [
-      { id: 1, weeks: 'Weeks 1-4', title: 'Deep Learning Foundation', description: 'Understanding Neural Networks basics, Backpropagation, and RNN/LSTM architectures as a foundation for sequence modeling.' },
-      { id: 2, weeks: 'Weeks 5-8', title: 'Transformer Architecture', description: 'In-depth study of Self-Attention mechanisms, Encoder-Decoder structures, and BERT/GPT architectures.' },
-      { id: 3, weeks: 'Weeks 9-12', title: 'LLM Adaptation & RAG', description: 'Fine-tuning techniques (PEFT/LoRA) and Retrieval Augmented Generation for specific contexts.' },
-      { id: 4, weeks: 'Weeks 13-16', title: 'Final Project & Ethics', description: 'End-to-end implementation of GenAI applications and analysis of social impact/model bias.' }
-    ],
-    composition: [
-      { type: 'Project', percentage: 50 },
-      { type: 'Theory', percentage: 30 },
-      { type: 'Quiz', percentage: 20 }
-    ],
-    stats: { theory: 30, project: 60, exam: 10 },
-    prerequisites: ['CS2010 (Algorithms)', 'MA2031 (Statistics)'],
-  },
-  {
-    id: '2',
-    code: 'IS3104',
-    title: 'Human-Computer Interaction',
-    credits: 3,
-    percentage: 30, // Changed from 78
-    color: '#FF90E8',
-    description: 'Focuses on User-Centered Design (UCD) interfaces. This course complements your technical skills with design empathy and usability testing capabilities.',
-    level: 'Undergraduate',
-    tags: ['Design', 'Soft Skill'],
-    skills: ['Figma', 'Usability Testing', 'User Research', 'Prototyping'],
-    clos: [
-      { id: 1, weeks: 'Weeks 1-4', title: 'Design Thinking Framework', description: 'Basic concepts of Empathize, Define, and Ideate within the context of software development.' },
-      { id: 2, weeks: 'Weeks 5-8', title: 'Prototyping & Wireframing', description: 'Creating Low-fidelity to High-fidelity prototypes using industry tools (Figma).' },
-      { id: 3, weeks: 'Weeks 9-12', title: 'Evaluation & Testing', description: 'Heuristic Evaluation methods and Usability Testing with real users.' },
-      { id: 4, weeks: 'Weeks 13-16', title: 'Interface Implementation', description: 'Translating designs into responsive and accessible frontend code.' }
-    ],
-    composition: [
-      { type: 'Group Task', percentage: 60 },
-      { type: 'Essay', percentage: 20 },
-      { type: 'Presentation', percentage: 20 }
-    ],
-    stats: { theory: 40, project: 50, exam: 10 },
-    prerequisites: ['None'],
-  },
-  {
-    id: '3',
-    code: 'SE4201',
-    title: 'Software Architecture',
-    credits: 4,
-    percentage: 20, // Changed from 65
-    color: '#4DE1C1',
-    description: 'Learn how to design large-scale systems. From Monolith to Microservices, covering essential design patterns every Software Architect must know.',
-    level: 'Undergraduate',
-    tags: ['System Design', 'Hard Skill'],
-    skills: ['Microservices', 'Docker/K8s', 'Cloud Design', 'UML'],
-    clos: [
-      { id: 1, weeks: 'Weeks 1-4', title: 'Architectural Styles', description: 'Introduction to Layered, Event-Driven, Microkernel, and Microservices architecture patterns.' },
-      { id: 2, weeks: 'Weeks 5-8', title: 'Design Patterns', description: 'Applying GoF Patterns (Factory, Singleton, Observer) in production code.' },
-      { id: 3, weeks: 'Weeks 9-12', title: 'Cloud Native Design', description: 'Designing scalable and resilient systems in Cloud environments (AWS/GCP).' },
-      { id: 4, weeks: 'Weeks 13-16', title: 'Architecture Documentation', description: 'Documenting architectural decisions using C4 Model and ADR.' }
-    ],
-    composition: [
-      { type: 'Diagrams', percentage: 40 },
-      { type: 'Coding', percentage: 40 },
-      { type: 'Report', percentage: 20 }
-    ],
-    stats: { theory: 50, project: 30, exam: 20 },
-    prerequisites: ['CS3001 (OOP)'],
-  },
-  {
-    id: '4',
-    code: 'BA3022',
-    title: 'Tech Entrepreneurship',
-    credits: 2,
-    percentage: 10, // Changed from 50
-    color: '#FFFFFF',
-    description: 'A cross-major course. Learn how to turn code into a business. Covers idea validation, Business Model Canvas, and investor pitching.',
-    level: 'Undergraduate',
-    tags: ['Business', 'Management'],
-    skills: ['Business Canvas', 'Pitching', 'Product Mgmt', 'Market Analysis'],
-    clos: [
-      { id: 1, weeks: 'Weeks 1-4', title: 'Ideation & Validation', description: 'Finding Market Fit problems and validating startup ideas.' },
-      { id: 2, weeks: 'Weeks 5-8', title: 'Business Modeling', description: 'Filling out the Business Model Canvas and designing monetization strategies.' },
-      { id: 3, weeks: 'Weeks 9-12', title: 'MVP Development', description: 'Strategies for building a Minimum Viable Product with limited resources.' },
-      { id: 4, weeks: 'Weeks 13-16', title: 'Fundraising & Pitch', description: 'Business presentation techniques and negotiation with potential investors.' }
-    ],
-    composition: [
-      { type: 'Pitch Deck', percentage: 50 },
-      { type: 'Validation', percentage: 30 },
-      { type: 'Theory', percentage: 20 }
-    ],
-    stats: { theory: 60, project: 40, exam: 0 },
-    prerequisites: ['None'],
-  }
-];
+interface AcademicStat {
+  label: string;
+  score: number;
+  reason: string;
+}
 
-// --- MATH HELPER ---
+interface CompetencyItem {
+  id: string;
+  name: string;
+  percentage: number;
+  color: string;
+  tagline: string;
+  description: string;
+  
+  evidence: EvidenceItem[];
+  hardSkills: string[];
+  projectIdeas: string[];
+
+  keyStrength: string;
+  areaToImprove: string;
+  academicStats: AcademicStat[];
+  learningPlatforms: string[];
+  relatedRoles: string[];
+  actionPlan: string;
+}
+
 const getCoordinatesForPercent = (percent: number) => {
   const x = Math.cos(2 * Math.PI * percent);
   const y = Math.sin(2 * Math.PI * percent);
   return [x, y];
 };
 
-export default function ElectiveResultPage() {
+function CompetencyResultContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const transcriptId = searchParams.get('id');
+
+  const [loading, setLoading] = useState(true);
+  const [dataList, setDataList] = useState<CompetencyItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  // NEW STATE: Untuk menghandle animasi loading
+  const [error, setError] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  
-  const selectedCourse = electiveCourses.find(r => r.id === selectedId);
 
-  useEffect(() => {
-    if (selectedId) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+  const fetchData = async (forceRegenerate = false) => {
+    if (!transcriptId) {
+      setError("No transcript ID provided.");
+      setLoading(false);
+      return;
     }
-  }, [selectedId]);
 
-  // NEW FUNCTION: Handle Regenerate
-  const handleRegenerate = () => {
-    if (isRegenerating) return;
-    setIsRegenerating(true);
-    
-    // Simulasi delay fetch data (1.5 detik)
-    setTimeout(() => {
-        setIsRegenerating(false);
-        // Reset pilihan jika ada
-        setSelectedId(null); 
-    }, 1500);
+    try {
+      setLoading(true);
+      const res = await fetch('/api/llmcourse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcriptId, forceRegenerate })
+      });
+
+      if (!res.ok) throw new Error("Failed to analyze data");
+
+      const json = await res.json();
+      if (json.success) {
+        const result = Array.isArray(json.data) ? json.data : [json.data];
+        setDataList(result);
+      } else {
+        throw new Error(json.message);
+      }
+      setError(null);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+      setIsRegenerating(false);
+    }
   };
 
+  useEffect(() => { fetchData(false); }, [transcriptId]);
+
+  const handleRegenerate = async () => {
+    if (isRegenerating) return;
+    setIsRegenerating(true);
+    setSelectedId(null);
+    await fetchData(true); 
+  };
+
+  const selectedItem = selectedId ? dataList.find(r => r.id === selectedId) : null;
+
+  if (loading && !isRegenerating) return <BookLoader />;
+  if (error || dataList.length === 0) return <div className="p-10 text-center font-bold">No Data Found</div>;
+
   // --- CHART LOGIC ---
-  const chartData = electiveCourses.reduce((acc, slice) => {
-    const total = electiveCourses.reduce((sum, item) => sum + item.percentage, 0);
+  const chartData = dataList.reduce((acc, slice) => {
+    const total = dataList.reduce((sum, item) => sum + item.percentage, 0);
     const slicePercent = slice.percentage / total;
-    
     const startPercent = acc.currentPercent;
     const endPercent = startPercent + slicePercent;
-    
     const [startX, startY] = getCoordinatesForPercent(startPercent);
     const [endX, endY] = getCoordinatesForPercent(endPercent);
     const largeArcFlag = slicePercent > 0.5 ? 1 : 0;
-
     const pathData = `M 0 0 L ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} L 0 0`;
-
     const midPercent = startPercent + slicePercent / 2;
     const [midX, midY] = getCoordinatesForPercent(midPercent);
-    const labelX = Number((midX * 0.7).toFixed(6)); 
-    const labelY = Number((midY * 0.7).toFixed(6));
-
+    const labelX = Number((midX * 0.75).toFixed(6)); 
+    const labelY = Number((midY * 0.75).toFixed(6));
     return {
       currentPercent: endPercent,
       items: [...acc.items, { ...slice, pathData, labelX, labelY }]
@@ -198,316 +124,258 @@ export default function ElectiveResultPage() {
   }, { currentPercent: 0, items: [] as any[] }).items;
 
   return (
-    <div className="min-h-screen w-full bg-[#FFF8DC] font-sans text-black relative flex flex-col pb-10">
+    <div className="min-h-screen w-full bg-[#FFF8DC] font-sans text-black relative flex flex-col pb-20 overflow-x-hidden">
       
-      {/* --- HEADER --- */}
+      {/* HEADER */}
       <div className="flex items-center justify-between p-6 z-20">
-            <motion.div 
-                className="flex items-center gap-3"
-                animate={{ opacity: 1 }}
-            >
-                {selectedId ? (
-                     <button 
-                        onClick={() => setSelectedId(null)}
-                        className="w-12 h-12 bg-black text-white border-4 border-black shadow-[4px_4px_0_white] flex items-center justify-center hover:-translate-y-1 transition-transform"
-                    >
-                        <ArrowLeft className="w-6 h-6" strokeWidth={3} />
-                    </button>
-                ) : (
-                    <button className="w-12 h-12 bg-white border-4 border-black shadow-[4px_4px_0_black] flex items-center justify-center">
-                        <Brain className="w-6 h-6" strokeWidth={3} />
-                    </button>
-                )}
-               
-                <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter">
-                    Result<span className="text-[#FF6B6B]">.</span>
-                </h1>
-            </motion.div>
-            
-            <div className="hidden md:block px-4 py-2 bg-[#FF90E8] border-4 border-black font-black uppercase shadow-[4px_4px_0_black] transform rotate-2">
-                Course
-            </div>
+        <motion.div className="flex items-center gap-3" animate={{ opacity: 1 }}>
+          {selectedId ? (
+            <button onClick={() => setSelectedId(null)} className="w-12 h-12 bg-black text-white border-4 border-black shadow-[4px_4px_0_white] flex items-center justify-center hover:-translate-y-1 transition-transform">
+              <ArrowLeft className="w-6 h-6" strokeWidth={3} />
+            </button>
+          ) : (
+            <button onClick={() => router.push('/dashboard')} className="w-12 h-12 bg-white border-4 border-black shadow-[4px_4px_0_black] flex items-center justify-center">
+               <BarChart3 className="w-6 h-6" strokeWidth={3} />
+            </button>
+          )}
+          <h1 className="text-2xl md:text-3xl font-black uppercase italic tracking-tighter">
+            Course Profile<span className="text-[#FF6B6B]">.</span>
+          </h1>
+        </motion.div>
+        <div className="hidden md:block px-4 py-2 bg-[#FF90E8] border-4 border-black font-black uppercase shadow-[4px_4px_0_black] transform rotate-2">
+            Competency Mix
+        </div>
       </div>
 
-      {/* --- CHART AREA --- */}
+      {/* CHART AREA */}
       <motion.div 
-        className="w-full flex flex-col items-center justify-center relative z-10"
-        animate={{ 
-            height: selectedId ? '250px' : '65vh', 
-            marginBottom: selectedId ? '20px' : '0px'
-        }}
-        transition={{ type: 'spring', stiffness: 100, damping: 20 }}
+        className="w-full flex flex-col items-center justify-center relative z-10 px-4"
+        animate={{ marginTop: selectedId ? '0px' : '5vh', height: selectedId ? 'auto' : '60vh', scale: selectedId ? 0.9 : 1 }}
+        transition={{ type: 'spring', stiffness: 80, damping: 20 }}
       >
-           {/* === REGENERATE BUTTON === */}
-           <AnimatePresence>
-            {!selectedId && (
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    // Posisi: Pojok kanan atas dari area chart container
-                    className="absolute top-4 right-4 md:top-10 md:right-10 z-30"
-                >
-                    <button
-                        onClick={handleRegenerate}
-                        disabled={isRegenerating}
-                        className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[2px_2px_0_black] hover:translate-x-0.5 hover:translate-y-0.5 transition-all active:shadow-none active:translate-x-1 active:translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed group"
-                    >
-                        <RefreshCw 
-                            className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} 
-                        />
-                        <span className="font-black text-sm uppercase hidden md:inline">Reroll</span>
-                    </button>
-                </motion.div>
-            )}
-           </AnimatePresence>
+        <AnimatePresence>
+          {!selectedId && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute top-0 right-0 md:top-4 md:right-10 z-30">
+              <button onClick={handleRegenerate} disabled={isRegenerating} className="flex items-center gap-2 px-4 py-2 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[2px_2px_0_black] transition-all active:shadow-none group">
+                <RefreshCw className={`w-5 h-5 ${isRegenerating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+                <span className="font-black text-sm uppercase hidden md:inline">Reroll</span>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-           <motion.div
-             className="relative aspect-square"
-             animate={{ 
-                width: selectedId ? '160px' : 'min(90vw, 400px)',
-                opacity: isRegenerating ? 0.5 : 1, // Redup saat regenerasi
-                scale: isRegenerating ? 0.95 : 1
-             }}
-             transition={{ duration: 0.3 }}
-           >
-                <svg 
-                    viewBox="-1.05 -1.05 2.1 2.1" 
-                    className="w-full h-full overflow-visible drop-shadow-xl" 
-                    style={{ transform: 'rotate(-90deg)' }}
+        <motion.div className="relative aspect-square" animate={{ width: selectedId ? '220px' : 'min(85vw, 450px)', opacity: isRegenerating ? 0.5 : 1 }}>
+          <svg viewBox="-1.05 -1.05 2.1 2.1" className="w-full h-full overflow-visible drop-shadow-2xl" style={{ transform: 'rotate(-90deg)' }}>
+            {chartData.map((slice: any, index: number) => {
+              const isSelected = selectedId === slice.id;
+              const isDimmed = selectedId && !isSelected;
+              return (
+                <motion.g 
+                  key={`${slice.id}-${index}`}
+                  onClick={() => !isRegenerating && setSelectedId(isSelected ? null : slice.id)}
+                  className="cursor-pointer"
+                  animate={{ opacity: isDimmed ? 0.3 : 1, scale: isSelected ? 1.05 : 1, filter: isDimmed ? 'grayscale(100%)' : 'none' }}
+                  whileHover={{ scale: 1.05 }}
                 >
-                    {chartData.map((slice: any) => {
-                    const isSelected = selectedId === slice.id;
-                    const isDimmed = selectedId && !isSelected;
+                  <path d={slice.pathData} fill={slice.color} stroke="#000000" strokeWidth="0.04" />
+                  {(slice.percentage >= 6 || (selectedId && isSelected)) && (
+                    <text x={slice.labelX} y={slice.labelY} fill="#000000" fontSize={selectedId ? "0.14" : "0.11"} fontWeight="900" textAnchor="middle" alignmentBaseline="middle" transform={`rotate(90 ${slice.labelX} ${slice.labelY})`} style={{ pointerEvents: 'none', userSelect: 'none' }}>
+                      {slice.percentage}%
+                    </text>
+                  )}
+                </motion.g>
+              );
+            })}
+          </svg>
+        </motion.div>
 
-                    return (
-                        <motion.g 
-                            key={slice.id}
-                            onClick={() => setSelectedId(isSelected ? null : slice.id)}
-                            className="cursor-pointer"
-                            animate={{ 
-                                opacity: isDimmed ? 0.3 : 1,
-                                scale: isSelected ? 1.05 : 1,
-                                filter: isDimmed ? 'grayscale(100%)' : 'none'
-                            }}
-                            whileHover={{ scale: 1.05 }}
-                        >
-                            <path 
-                                d={slice.pathData} 
-                                fill={slice.color} 
-                                stroke="#000000" 
-                                strokeWidth="0.04" 
-                            />
-                            {(slice.percentage >= 10 || (selectedId && isSelected)) && (
-                                <text
-                                    x={slice.labelX}
-                                    y={slice.labelY}
-                                    fill="#000000"
-                                    fontSize={selectedId ? "0.15" : "0.12"}
-                                    fontWeight="900"
-                                    textAnchor="middle"
-                                    alignmentBaseline="middle"
-                                    transform={`rotate(90 ${slice.labelX} ${slice.labelY})`}
-                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
-                                >
-                                    {slice.percentage}%
-                                </text>
-                            )}
-                        </motion.g>
-                    );
-                    })}
-                </svg>
-           </motion.div>
-
-           <AnimatePresence>
-            {!selectedId && !isRegenerating && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -20 }} 
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ delay: 0.2 }}
-                    className="mt-8 text-center"
-                >
-                    <div className="inline-block px-6 py-3 bg-white border-2 border-black shadow-[4px_4px_0_black] hover:shadow-[6px_6px_0_black] transition-shadow cursor-default">
-                        <span className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
-                             Tap Suggested Course 👆
-                        </span>
-                    </div>
-                </motion.div>
-            )}
-             {/* Loading State Text */}
-             {!selectedId && isRegenerating && (
-                <motion.div 
-                    initial={{ opacity: 0 }} 
-                    animate={{ opacity: 1 }}
-                    className="mt-8 text-center"
-                >
-                    <span className="font-black text-sm uppercase tracking-widest animate-pulse">
-                        Analyzing Transcript...
-                    </span>
-                </motion.div>
-            )}
-           </AnimatePresence>
+        {/* <AnimatePresence>
+          {!selectedId && !isRegenerating && (
+             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-8 text-center">
+                <div className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 font-bold uppercase tracking-widest text-xs transform -rotate-2 shadow-[4px_4px_0_#FF90E8]">
+                    <MousePointerClick className="w-4 h-4" /> Click slice to view analysis
+                </div>
+             </motion.div>
+          )}
+        </AnimatePresence> */}
       </motion.div>
 
-      {/* --- CONTENT AREA (Bento Grid) --- */}
+      {/* --- CONTENT AREA (Rich Bento Grid) --- */}
       <AnimatePresence mode="wait">
-        {selectedCourse && (
-            <motion.div
-                key={selectedCourse.id}
-                initial={{ opacity: 0, y: 50 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 20 }}
-                transition={{ duration: 0.4, ease: "easeOut" }}
-                className="w-full max-w-6xl mx-auto px-4 sm:px-6"
-            >
-                {/* 1. IDENTITY HEADER */}
-                <div className="mb-8 flex flex-col md:flex-row items-start md:items-end gap-6 border-b-4 border-black pb-8">
-                    <div className="flex-1">
-                        <div className="flex flex-wrap gap-2 mb-3">
-                            <span className="px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wider">
-                                {selectedCourse.code}
-                            </span>
-                            {selectedCourse.tags.map((tag) => (
-                                <span key={tag} className="px-3 py-1 bg-white border-2 border-black text-xs font-bold uppercase">
-                                    {tag}
+        {selectedItem && (
+          <motion.div
+            key={selectedItem.id}
+            initial={{ opacity: 0, y: 40 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="w-full max-w-5xl mx-auto px-4 sm:px-6 z-10 mt-6"
+          >
+            
+            {/* 1. HEADER */}
+            <div className="mb-8 flex flex-col md:flex-row items-start md:items-end gap-6 border-b-4 border-black pb-8">
+              <div className="flex-1 w-full">
+                <div className="flex flex-wrap gap-2 mb-3">
+                   <span className="px-3 py-1 bg-black text-white text-xs font-bold uppercase tracking-wider">Domain #{selectedItem.id}</span>
+                   <span className="px-3 py-1 bg-[#FFD93D] border-2 border-black text-xs font-bold uppercase tracking-wider">{selectedItem.percentage}% Composition</span>
+                </div>
+                <h2 className="text-4xl md:text-5xl font-black uppercase leading-[0.9] mb-4 wrap-break-word">{selectedItem.name}</h2>
+                <p className="text-lg font-medium leading-relaxed text-gray-800 border-l-4 border-black pl-4">
+                  &quot;{selectedItem.description}&quot;
+                </p>
+              </div>
+              
+              <div className="bg-[#4DE1C1] border-4 border-black p-4 shadow-[6px_6px_0_black] shrink-0 w-full md:w-auto md:max-w-[300px]">
+                <div className="flex items-center gap-2 mb-2 justify-center md:justify-start">
+                  <Award className="w-5 h-5" />
+                  <span className="font-black uppercase text-sm">Key Strength</span>
+                </div>
+                <div className="font-mono font-black text-lg md:text-xl text-center md:text-right uppercase wrap-break-word leading-tight">
+                  {selectedItem.keyStrength}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. BENTO GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-10">
+                
+                {/* COL 1: EVIDENCE & SKILLS */}
+                <div className="md:col-span-4 space-y-6">
+                    <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black] flex flex-col h-[300px]">
+                        <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
+                            <FileText className="w-5 h-5" /> Academic Track
+                        </h3>
+                        <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
+                             {/* FILTER KOSONG: Hanya tampilkan jika grade ada isinya */}
+                             {selectedItem.evidence && selectedItem.evidence
+                                .filter(ev => ev.grade && ev.grade.trim() !== '' && ev.grade !== '-' && ev.grade !== 'null')
+                                .map((ev, i) => (
+                                <div key={i} className="flex justify-between items-center bg-gray-50 p-2 border border-gray-200">
+                                    <span className="text-xs font-bold text-gray-700 truncate w-[70%]">{ev.subject}</span>
+                                    <span className={`text-xs font-black px-2 py-0.5 border border-black ${(ev.grade || '').includes('A') ? 'bg-[#4DE1C1]' : 'bg-[#FFD93D]'}`}>
+                                        {ev.grade}
+                                    </span>
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+
+                    <div className="bg-[#4DE1C1] border-4 border-black p-5 shadow-[6px_6px_0_black]">
+                        <h3 className="font-black uppercase text-sm mb-3 flex items-center gap-2">
+                            <Code2 className="w-4 h-4" /> Skill Inventory
+                        </h3>
+                        <div className="flex flex-wrap gap-2">
+                            {selectedItem.hardSkills && selectedItem.hardSkills.map((skill, i) => (
+                                <span key={i} className="px-2 py-1 bg-white border-2 border-black font-bold text-[10px] uppercase shadow-[1px_1px_0_black]">
+                                    {skill}
                                 </span>
                             ))}
                         </div>
-                        <h2 className="text-3xl md:text-5xl font-black uppercase leading-[0.9] mb-4">
-                            {selectedCourse.title}
-                        </h2>
-                        <p className="text-lg font-bold leading-relaxed text-gray-700 max-w-2xl">
-                            {selectedCourse.description}
+                    </div>
+                </div>
+
+                {/* COL 2: THESIS & STATS */}
+                <div className="md:col-span-5 space-y-6">
+                    
+                    {/* Thesis Sparks */}
+                    <div className="bg-[#FF90E8] border-4 border-black p-5 shadow-[6px_6px_0_black]">
+                        <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
+                            <Lightbulb className="w-5 h-5" /> Thesis Sparks
+                        </h3>
+                        <div className="space-y-3">
+                             {selectedItem.projectIdeas && selectedItem.projectIdeas.map((idea, i) => (
+                                <div key={i} className="bg-white border-2 border-black p-3 flex items-start gap-3">
+                                    <span className="font-black text-[#FF90E8]">0{i+1}</span>
+                                    <p className="text-xs font-bold uppercase leading-relaxed">
+                                        {idea}
+                                    </p>
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+
+                    {/* Stats (Force Show 3) */}
+                    <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
+                        <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
+                            <TrendingUp className="w-5 h-5" /> Performance
+                        </h3>
+                        <div className="space-y-6">
+                        {selectedItem.academicStats && selectedItem.academicStats.map((stat, idx) => (
+                            <div key={idx} className="relative">
+                                <div className="flex justify-between mb-1">
+                                    <span className="text-sm font-bold uppercase">{stat.label}</span>
+                                    <span className="text-sm font-black">{stat.score}/100</span>
+                                </div>
+                                <div className="h-3 bg-gray-200 border-2 border-black mb-1">
+                                    <motion.div 
+                                      initial={{ width: 0 }} 
+                                      whileInView={{ width: `${stat.score}%` }} 
+                                      viewport={{ once: true }} 
+                                      transition={{ duration: 1 }} 
+                                      className="h-full border-r-2 border-black" 
+                                      style={{ backgroundColor: selectedItem.color }} 
+                                    />
+                                </div>
+                                <p className="text-[10px] text-gray-500 italic leading-tight">
+                                  {stat.reason}
+                                </p>
+                            </div>
+                        ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* COL 3: ACTION PLAN & PLATFORMS */}
+                <div className="md:col-span-3 space-y-6">
+                    {/* Action Plan */}
+                    <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
+                        <h3 className="font-black uppercase text-sm mb-2 flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4" /> Next Step
+                        </h3>
+                        <p className="font-medium text-sm leading-tight text-gray-700">
+                            {selectedItem.actionPlan}
                         </p>
                     </div>
-                    
-                    {/* Credits Box (Replaces Price) */}
-                    <div className="bg-[#4DE1C1] border-4 border-black p-5 shadow-[8px_8px_0_black] shrink-0 w-full md:w-auto text-center md:text-right transform rotate-1">
-                        <div className="text-xs font-black uppercase mb-1">Course Weight</div>
-                        <div className="font-mono font-black text-5xl mb-1">{selectedCourse.credits}</div>
-                        <div className="text-sm font-black uppercase">Credits / SKS</div>
+
+                     {/* Learning Platforms */}
+                    <div className="bg-[#F3F4F6] border-4 border-black p-5 shadow-[6px_6px_0_black]">
+                        <h3 className="font-black uppercase text-sm mb-3 flex items-center gap-2">
+                            <MonitorPlay className="w-4 h-4" /> Platforms
+                        </h3>
+                        <div className="flex flex-col gap-2">
+                             {selectedItem.learningPlatforms && selectedItem.learningPlatforms.map((platform, i) => (
+                                <div key={i} className="flex items-center gap-2 bg-white border border-black p-2">
+                                    <Globe className="w-3 h-3 text-gray-400" />
+                                    <span className="text-[10px] font-bold uppercase truncate">{platform}</span>
+                                </div>
+                             ))}
+                        </div>
+                    </div>
+
+                    {/* Roles */}
+                    <div className="bg-[#FFD93D] border-4 border-black p-4 shadow-[6px_6px_0_black]">
+                         <h3 className="font-black uppercase text-sm mb-2 border-b-2 border-black pb-1">Roles</h3>
+                         <div className="flex flex-wrap gap-2">
+                            {selectedItem.relatedRoles && selectedItem.relatedRoles.map((role, i) => (
+                                <span key={i} className="text-[10px] font-bold underline decoration-black">
+                                    {role}
+                                </span>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
-                {/* 2. BENTO GRID LAYOUT */}
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 pb-20">
-                    
-                    {/* COL 1: SPECS (Span 4) */}
-                    <div className="md:col-span-4 space-y-6">
-                        
-                         {/* Assessment Stats */}
-                         <div className="bg-[#F3F4F6] border-4 border-black p-5 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
-                                <BarChart className="w-5 h-5" /> Assessment
-                             </h3>
-                             <div className="space-y-4">
-                                {Object.entries(selectedCourse.stats).map(([key, value]) => (
-                                    <div key={key}>
-                                        <div className="flex justify-between mb-1">
-                                            <span className="text-xs font-bold uppercase">{key}</span>
-                                            <span className="text-xs font-black">{value}%</span>
-                                        </div>
-                                        <div className="h-3 bg-white border-2 border-black rounded-full overflow-hidden">
-                                            <motion.div 
-                                                initial={{ width: 0 }}
-                                                whileInView={{ width: `${value}%` }}
-                                                viewport={{ once: true }}
-                                                transition={{ duration: 0.8 }}
-                                                className="h-full bg-black"
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                             </div>
-                        </div>
-
-                        {/* Prerequisites */}
-                        <div className="bg-[#FF90E8] border-4 border-black p-5 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
-                                <FileText className="w-5 h-5" /> Prerequisites
-                             </h3>
-                             <div className="bg-white border-2 border-black p-3">
-                                <p className="text-xs font-bold text-gray-500 uppercase mb-2">Must Have Passed:</p>
-                                <ul className="space-y-2">
-                                    {selectedCourse.prerequisites.map((req, i) => (
-                                        <li key={i} className="flex items-center gap-2 text-sm font-black">
-                                            <div className="w-2 h-2 bg-black rounded-full" /> {req}
-                                        </li>
-                                    ))}
-                                </ul>
-                             </div>
-                        </div>
-
-                    </div>
-
-                    {/* COL 2: CLO / SYLLABUS (Span 5) */}
-                    <div className="md:col-span-5 space-y-6">
-                         
-                        {/* Course Learning Outcomes */}
-                        <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
-                            <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2 border-b-4 border-black pb-2 w-full">
-                                <Target className="w-5 h-5" /> Learning Outcomes (CLO)
-                            </h3>
-                            <div className="space-y-4">
-                                {selectedCourse.clos.map((clo, idx) => (
-                                    <div key={idx} className="relative pl-6 border-l-4 border-black/10 hover:border-black transition-colors group">
-                                        <div className="absolute -left-1.5 top-0 w-3 h-3 bg-black rounded-full" />
-                                        
-                                        <div className="inline-block bg-[#FFD93D] px-2 py-0.5 border border-black text-[10px] font-black uppercase mb-1">
-                                            {clo.weeks}
-                                        </div>
-                                        
-                                        <h4 className="font-black text-sm uppercase mb-1 group-hover:underline decoration-2 underline-offset-2">
-                                            CLO {clo.id}: {clo.title}
-                                        </h4>
-                                        <p className="text-xs font-bold text-gray-600 leading-relaxed">
-                                            {clo.description}
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* COL 3: SKILLS & EXTRAS (Span 3) */}
-                    <div className="md:col-span-3 space-y-6">
-                        
-                         {/* Learning Method */}
-                         <div className="bg-white border-4 border-black p-4 shadow-[6px_6px_0_black]">
-                            <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2 bg-black text-white inline-block px-1">
-                                Method
-                            </h3>
-                            <div className="flex flex-col gap-2">
-                                {selectedCourse.composition.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center bg-gray-50 p-2 border border-black">
-                                        <span className="text-xs font-bold uppercase">{item.type}</span>
-                                        <span className="text-xs font-black">{item.percentage}%</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Skills Gained */}
-                        <div className="bg-white border-4 border-black p-4 shadow-[6px_6px_0_black]">
-                             <h3 className="font-black uppercase text-sm mb-3 border-b-2 border-black pb-2">
-                                Competencies
-                            </h3>
-                            <div className="flex flex-wrap gap-2">
-                                {selectedCourse.skills.map((skill) => (
-                                    <span key={skill} className="bg-[#E0E7FF] border-2 border-black px-2 py-1 text-[10px] font-bold uppercase">
-                                        {skill}
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-
-                    </div>
-
-                </div>
-            </motion.div>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function ResultPage() {
+  return (
+    <Suspense fallback={<BookLoader />}>
+      <CompetencyResultContent />
+    </Suspense>
   );
 }

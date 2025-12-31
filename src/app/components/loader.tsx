@@ -5,11 +5,11 @@ const BookLoader: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-[#FFF8DC]">
       <div className="relative w-[200px] h-[140px]">
         {/* Shadow elements */}
-        <div className="absolute bottom-2 left-1 w-[120px] top-[80%] shadow-[0_16px_12px_rgba(39,94,254,0.28)] -rotate-[6deg]" />
-        <div className="absolute bottom-2 right-1 w-[120px] top-[80%] shadow-[0_16px_12px_rgba(39,94,254,0.28)] rotate-[6deg]" />
+        <div className="absolute bottom-2 left-1 w-[120px] top-[80%] shadow-[0_16px_12px_rgba(39,94,254,0.28)] -rotate-6" />
+        <div className="absolute bottom-2 right-1 w-[120px] top-[80%] shadow-[0_16px_12px_rgba(39,94,254,0.28)] rotate-6" />
         
         {/* Main book container */}
-        <div className="relative w-full h-full rounded-[13px] z-10 shadow-[0_4px_6px_rgba(39,94,254,0.28)] bg-gradient-to-br from-[#23C4F8] to-[#275EFE]" style={{ perspective: '600px' }}>
+        <div className="relative w-full h-full rounded-[13px] z-10 shadow-[0_4px_6px_rgba(39,94,254,0.28)] bg-linear-to-br from-[#23C4F8] to-[#275EFE]" style={{ perspective: '600px' }}>
           <ul className="relative m-0 p-0 list-none">
             {/* Page 1 - Base page */}
             <li className="absolute top-2.5 left-2.5 opacity-100" style={{ transformOrigin: '100% 50%', transform: 'rotateY(0deg)' }}>
