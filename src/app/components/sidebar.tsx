@@ -52,8 +52,7 @@ export default function RetroSidebar() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- VARIANTS ---
-  // Kita pisahkan logic animasi untuk Mobile (Slide) dan Desktop (Width)
+  // --- VARIANTS (FIXED TYPE ERROR: Added ': Variants') ---
   const sidebarVariants: Variants = {
     open: isMobile 
       ? { x: 0, width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } } // Mobile: Full Slide In
@@ -62,6 +61,22 @@ export default function RetroSidebar() {
     closed: isMobile
       ? { x: '-100%', width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } } // Mobile: Slide Out (Hidden)
       : { width: '6rem', x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } } // Desktop: Collapse Width
+  };
+
+  const containerVariants: Variants = {
+    open: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
+    closed: { transition: { staggerChildren: 0.05, staggerDirection: -1 } }
+  };
+  
+  const itemVariants: Variants = {
+    open: { opacity: 1, x: 0, display: 'block', transition: { type: "spring", stiffness: 300, damping: 24 } },
+    closed: { opacity: 0, x: -20, transitionEnd: { display: 'none' } }
+  };
+
+  const buttonClick: Variants = {
+    rest: { x: 0, y: 0, boxShadow: '4px 4px 0px rgba(0,0,0,1)' },
+    hover: { x: 2, y: 2, boxShadow: '2px 2px 0px rgba(0,0,0,1)' },
+    tap: { x: 4, y: 4, boxShadow: '0px 0px 0px rgba(0,0,0,1)' }
   };
 
   // --- ACTIONS ---
@@ -116,23 +131,6 @@ export default function RetroSidebar() {
     router.push(`/result/${type}?id=${id}`);
   };
 
-  // Common Animation Variants
-  const containerVariants = {
-    open: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
-    closed: { transition: { staggerChildren: 0.05, staggerDirection: -1 } }
-  };
-  
-  const itemVariants = {
-    open: { opacity: 1, x: 0, display: 'block', transition: { type: "spring", stiffness: 300, damping: 24 } },
-    closed: { opacity: 0, x: -20, transitionEnd: { display: 'none' } }
-  };
-
-  const buttonClick = {
-    rest: { x: 0, y: 0, boxShadow: '4px 4px 0px rgba(0,0,0,1)' },
-    hover: { x: 2, y: 2, boxShadow: '2px 2px 0px rgba(0,0,0,1)' },
-    tap: { x: 4, y: 4, boxShadow: '0px 0px 0px rgba(0,0,0,1)' }
-  };
-
   return (
     <>
       <DeleteModal 
@@ -142,7 +140,6 @@ export default function RetroSidebar() {
       />
 
       {/* --- MOBILE TRIGGER (Hamburger Button) --- */}
-      {/* Tombol ini hanya muncul di Mobile (md:hidden) saat sidebar tertutup (!isOpen) */}
       <div className="md:hidden fixed top-4 left-4 z-40">
         <AnimatePresence>
           {!isOpen && (
@@ -160,7 +157,6 @@ export default function RetroSidebar() {
       </div>
 
       {/* --- MOBILE BACKDROP --- */}
-      {/* Layar hitam transparan di belakang sidebar mobile */}
       <AnimatePresence>
         {isMobile && isOpen && (
           <motion.div
@@ -178,9 +174,6 @@ export default function RetroSidebar() {
         initial={false}
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
-        // Logic Class:
-        // - Mobile: 'fixed' agar melayang di atas konten, height full.
-        // - Desktop: 'relative' agar mendorong konten (layout flex), height full.
         className={`
           bg-white border-r-4 border-black flex flex-col z-50
           ${isMobile ? 'fixed inset-y-0 left-0 h-full shadow-[10px_0_20px_rgba(0,0,0,0.2)]' : 'relative h-screen'}
@@ -191,7 +184,6 @@ export default function RetroSidebar() {
         <div className="p-5 border-b-4 border-black bg-white flex items-center justify-between h-24 overflow-hidden shrink-0">
           <button onClick={() => { if(isMobile) setIsOpen(false); router.push("/dashboard"); }} className="flex items-center">
             <AnimatePresence mode="wait">
-              {/* Logo selalu muncul saat Open (Desktop/Mobile) */}
               {isOpen && (
                 <motion.div 
                   initial={{ opacity: 0, x: -20 }}
@@ -210,8 +202,6 @@ export default function RetroSidebar() {
             </AnimatePresence>
           </button>
 
-          {/* Toggle Button Inside Sidebar */}
-          {/* Di Mobile berfungsi sebagai tombol CLOSE (X). Di Desktop sebagai Toggle (Menu/X) */}
           <motion.button
             onClick={() => setIsOpen(!isOpen)}
             variants={buttonClick}
@@ -224,7 +214,7 @@ export default function RetroSidebar() {
           </motion.button>
         </div>
 
-        {/* ACTION BUTTON (New Upload) */}
+        {/* ACTION BUTTON */}
         <div className="p-5 border-b-4 border-black bg-[#fafafa] min-h-[100px] flex items-center justify-center shrink-0">
           <AnimatePresence mode="wait">
             {isOpen ? (
@@ -240,7 +230,6 @@ export default function RetroSidebar() {
                 <span className="text-sm uppercase tracking-wider">New Upload</span>
               </motion.button>
             ) : (
-              // Icon button hanya untuk desktop mode closed
               !isMobile && (
                 <motion.button
                   onClick={() => router.push("/dashboard")}
@@ -265,7 +254,7 @@ export default function RetroSidebar() {
             animate={isOpen ? "open" : "closed"}
             className="p-5 space-y-8"
           >
-            {/* ... Courses Section ... */}
+            {/* Courses Section */}
             {(courses.length > 0 || isLoading) && (
               <motion.div variants={itemVariants} className="space-y-3">
                 <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform -rotate-1 shadow-[2px_2px_0px_rgba(77,225,193,1)]">
@@ -305,7 +294,7 @@ export default function RetroSidebar() {
               </motion.div>
             )}
 
-            {/* ... Career Section ... */}
+            {/* Career Section */}
             {(careers.length > 0 || isLoading) && (
               <motion.div variants={itemVariants} className="space-y-3">
                  <div className="flex items-center gap-2 mb-4 bg-black text-white p-1 w-max px-3 transform rotate-1 shadow-[2px_2px_0px_#FFD93D]">
@@ -343,7 +332,7 @@ export default function RetroSidebar() {
             )}
           </motion.div>
 
-          {/* Collapsed Icons View - Hanya muncul di Desktop (!isMobile) */}
+          {/* Collapsed Icons View */}
           {!isOpen && !isMobile && (
              <div className="absolute top-[200px] left-0 w-full flex flex-col items-center space-y-4 pointer-events-none">
                  {courses.length > 0 && <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]"><BookOpen className="w-5 h-5"/></div>}
@@ -354,7 +343,6 @@ export default function RetroSidebar() {
 
         {/* USER CARD */}
         <div className="border-t-4 border-black p-4 bg-[#FF90E8] overflow-visible relative shrink-0">
-           {/* ... User Popup Logic (sama seperti sebelumnya) ... */}
            <AnimatePresence>
               {showUserMenu && isOpen && (
                 <motion.div 
@@ -399,7 +387,6 @@ export default function RetroSidebar() {
                   </motion.div>
                 </motion.button>
               ) : (
-                // Icon user hanya muncul di Desktop Collapsed
                  !isMobile && (
                   <motion.button 
                     key="icon-user"
