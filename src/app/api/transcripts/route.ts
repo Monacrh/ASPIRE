@@ -6,7 +6,7 @@ import { Transcript } from '@/src/types/transcript';
 
 const DB_NAME = 'aspire_db';
 const COLLECTION_NAME = 'transcripts';
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia-super-aman-aspire-2024');
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Helper: Ambil User ID dari Token
 async function getUserId() {

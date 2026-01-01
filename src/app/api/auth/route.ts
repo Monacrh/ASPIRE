@@ -7,7 +7,7 @@ import { User } from '@/src/types/user';
 
 const MONGODB_COLLECTION = 'users';
 const DB_NAME = 'aspire_db';
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia-super-aman-aspire-2024'); // Ganti dengan ENV di production
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET); // Ganti dengan ENV di production
 
 export async function POST(req: Request) {
   try {

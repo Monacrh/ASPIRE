@@ -7,7 +7,7 @@ import { Transcript } from '@/src/types/transcript';
 
 const DB_NAME = 'aspire_db';
 const COLLECTION_NAME = 'transcripts';
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'rahasia-super-aman-aspire-2024');
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
 
 export async function GET(req: Request, context: { params: Promise<{ id: string }> }) {
   // Await params (Next.js 15/16 style)

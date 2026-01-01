@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen, LogOut, Trash2 } from 'lucide-react';
+import { Menu, X, Plus, Clock, ChevronDown, Briefcase, BookOpen, LogOut, Trash2 } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Transcript } from '@/src/types/transcript';
@@ -10,57 +10,67 @@ import DeleteModal from './delete-modal';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-export default function RetroSidebar() {
+// --- Definisi Tipe Props ---
+interface RetroSidebarProps {
+  user?: {
+    fullName?: string;
+    email?: string;
+    _id?: string;
+  } | null;
+}
+
+export default function RetroSidebar({ user }: RetroSidebarProps) {
   const router = useRouter();
   
-  // State
+  // State UI
   const [isOpen, setIsOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false); // Deteksi Mobile
+  const [isMobile, setIsMobile] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
-  // Modal State
+  // State Modal Delete
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null }>({
     isOpen: false,
     id: null
   });
 
+  // Data Logic (SWR)
   const { mutate } = useSWRConfig(); 
   const { data: apiResponse, isLoading } = useSWR('/api/transcripts', fetcher);
-
   const transcripts = apiResponse?.data || [];
   const courses = transcripts.filter((t: Transcript) => t.recommendationType === 'course');
   const careers = transcripts.filter((t: Transcript) => t.recommendationType === 'career');
 
-  // --- EFFECT: Handle Responsive ---
+  // Logic Nama User (Dari Props Layout)
+  const userName = user?.fullName || "My Account";
+  const userInitial = userName.charAt(0).toUpperCase();
+
+  // --- EFFECT: Responsive Check ---
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth < 768; // Breakpoint MD Tailwind
+      const mobile = window.innerWidth < 768; // Tailwind md breakpoint
       setIsMobile(mobile);
-      // Jika pindah ke mobile, defaultnya tertutup. Jika desktop, default terbuka.
       if (mobile) {
-        setIsOpen(false);
+        setIsOpen(false); // Mobile: default closed
       } else {
-        setIsOpen(true);
+        setIsOpen(true); // Desktop: default open
       }
     };
 
-    // Cek saat mount
-    handleResize();
-
+    handleResize(); // Cek saat pertama load
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // --- VARIANTS (FIXED TYPE ERROR: Added ': Variants') ---
+  // --- ANIMASI VARIANTS (Fixed Type Error) ---
   const sidebarVariants: Variants = {
     open: isMobile 
-      ? { x: 0, width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } } // Mobile: Full Slide In
-      : { width: '20rem', x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }, // Desktop: Expand Width
+      ? { x: 0, width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } }
+      : { width: '20rem', x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
     
     closed: isMobile
-      ? { x: '-100%', width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } } // Mobile: Slide Out (Hidden)
-      : { width: '6rem', x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } } // Desktop: Collapse Width
+      ? { x: '-100%', width: '85vw', transition: { type: "spring", stiffness: 300, damping: 30 } }
+      : { width: '6rem', x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } }
   };
 
   const containerVariants: Variants = {
@@ -101,8 +111,10 @@ export default function RetroSidebar() {
   const confirmDelete = async () => {
     const idToDelete = deleteModal.id;
     if (!idToDelete) return;
+
     setDeleteModal({ isOpen: false, id: null });
     setIsDeleting(idToDelete);
+
     try {
       const res = await fetch(`/api/transcripts/${idToDelete}`, { method: 'DELETE' });
       if (res.ok) {
@@ -126,8 +138,7 @@ export default function RetroSidebar() {
   };
 
   const handleNavigate = (type: 'course' | 'career', id: string) => {
-    // Di Mobile, setelah klik menu, sidebar harus menutup otomatis agar konten terlihat
-    if (isMobile) setIsOpen(false);
+    if (isMobile) setIsOpen(false); // Tutup sidebar di HP setelah klik
     router.push(`/result/${type}?id=${id}`);
   };
 
@@ -214,7 +225,7 @@ export default function RetroSidebar() {
           </motion.button>
         </div>
 
-        {/* ACTION BUTTON */}
+        {/* NEW UPLOAD BUTTON */}
         <div className="p-5 border-b-4 border-black bg-[#fafafa] min-h-[100px] flex items-center justify-center shrink-0">
           <AnimatePresence mode="wait">
             {isOpen ? (
@@ -246,7 +257,7 @@ export default function RetroSidebar() {
           </AnimatePresence>
         </div>
 
-        {/* SCROLLABLE LIST */}
+        {/* SCROLLABLE LIST CONTENT */}
         <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-repeat">
           <motion.div 
             variants={containerVariants}
@@ -332,7 +343,7 @@ export default function RetroSidebar() {
             )}
           </motion.div>
 
-          {/* Collapsed Icons View */}
+          {/* Collapsed Icons View (Desktop Only) */}
           {!isOpen && !isMobile && (
              <div className="absolute top-[200px] left-0 w-full flex flex-col items-center space-y-4 pointer-events-none">
                  {courses.length > 0 && <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]"><BookOpen className="w-5 h-5"/></div>}
@@ -341,8 +352,9 @@ export default function RetroSidebar() {
           )}
         </div>
 
-        {/* USER CARD */}
+        {/* USER ACCOUNT CARD */}
         <div className="border-t-4 border-black p-4 bg-[#FF90E8] overflow-visible relative shrink-0">
+           {/* Popup Logout */}
            <AnimatePresence>
               {showUserMenu && isOpen && (
                 <motion.div 
@@ -362,6 +374,7 @@ export default function RetroSidebar() {
               )}
             </AnimatePresence>
 
+            {/* Toggle Button User */}
             <AnimatePresence mode="wait">
               {isOpen ? (
                 <motion.button 
@@ -376,10 +389,10 @@ export default function RetroSidebar() {
                   className="w-full p-3 border-2 border-black bg-white flex items-center gap-3 relative z-10"
                 >
                    <div className="w-10 h-10 bg-black flex items-center justify-center border border-black shrink-0">
-                    <span className="text-white font-bold font-mono">U</span>
+                    <span className="text-white font-bold font-mono">{userInitial}</span>
                   </div>
                   <div className="flex-1 text-left overflow-hidden whitespace-nowrap">
-                    <p className="font-black text-black text-sm truncate uppercase">My Account</p>
+                    <p className="font-black text-black text-sm truncate uppercase">{userName}</p>
                     <p className="text-xs font-mono text-gray-600 truncate">Logged In</p>
                   </div>
                    <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }}>
@@ -397,7 +410,7 @@ export default function RetroSidebar() {
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     className="w-12 h-12 bg-black border-2 border-white flex items-center justify-center mx-auto shadow-lg"
                   >
-                    <User className="w-6 h-6 text-white" />
+                     <span className="text-white font-bold font-mono text-lg">{userInitial}</span>
                   </motion.button>
                  )
               )}
