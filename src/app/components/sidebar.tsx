@@ -1,38 +1,71 @@
 'use client'
 
 import React, { useState } from 'react';
-import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen } from 'lucide-react';
+// Tambahkan import LogOut dan Trash2
+import { Menu, X, Plus, Clock, User, ChevronDown, Briefcase, BookOpen, LogOut, Trash2 } from 'lucide-react';
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from 'framer-motion';
 import { Transcript } from '@/src/types/transcript';
-import useSWR from 'swr'; // 1. Import SWR
+import useSWR, { useSWRConfig } from 'swr'; // Import useSWRConfig untuk mutate manual
 
-// 2. Buat fungsi fetcher sederhana
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 export default function RetroSidebar() {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false); // State untuk popup menu user
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // State loading saat delete
 
-  // 3. Gunakan useSWR untuk mengambil data secara otomatis & realtime
-  // Key '/api/transcripts' ini nanti akan kita "senggol" dari dashboard agar refresh
+  // Gunakan mutate global untuk refresh list setelah delete
+  const { mutate } = useSWRConfig(); 
   const { data: apiResponse, isLoading } = useSWR('/api/transcripts', fetcher);
 
-  // 4. Olah data dari response SWR
-  // Jika apiResponse belum ada (undefined), anggap array kosong
   const transcripts = apiResponse?.data || [];
-  
-  // Filter data seperti sebelumnya
   const courses = transcripts.filter((t: Transcript) => t.recommendationType === 'course');
   const careers = transcripts.filter((t: Transcript) => t.recommendationType === 'career');
 
-  // Helper untuk format tanggal sederhana
+  // --- LOGIC LOGOUT ---
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'logout' }),
+      });
+      router.push('/auth');
+    } catch (error) {
+      console.error('Logout failed', error);
+    }
+  };
+
+  // --- LOGIC DELETE ---
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // Mencegah navigasi ke halaman result saat tombol delete diklik
+    if (!confirm('Are you sure you want to delete this history?')) return;
+
+    setIsDeleting(id);
+    try {
+      const res = await fetch(`/api/transcripts/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        // Refresh list tanpa reload halaman
+        mutate('/api/transcripts');
+        // Jika user sedang berada di halaman yang dihapus, kembalikan ke dashboard
+        router.push('/dashboard');
+      } else {
+        alert("Failed to delete");
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
+
   const formatDate = (dateString: Date) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Helper untuk redirect ke halaman result
   const handleNavigate = (type: 'course' | 'career', id: string) => {
     router.push(`/result/${type}?id=${id}`);
   };
@@ -41,43 +74,21 @@ export default function RetroSidebar() {
     yellow: '#FFD93D',
     cyan: '#4DE1C1',
     pink: '#FF90E8',
-    white: '#FFFFFF',
-    dark: '#1a1a1a'
   };
 
-  // --- ANIMATION VARIANTS ---
   const sidebarVariants: Variants = {
-    open: { 
-      width: '20rem', 
-      transition: { type: "spring", stiffness: 300, damping: 30 }
-    },
-    closed: { 
-      width: '6rem', 
-      transition: { type: "spring", stiffness: 300, damping: 30 }
-    }
+    open: { width: '20rem', transition: { type: "spring", stiffness: 300, damping: 30 } },
+    closed: { width: '6rem', transition: { type: "spring", stiffness: 300, damping: 30 } }
   };
 
   const containerVariants: Variants = {
-    open: {
-      transition: { staggerChildren: 0.1, delayChildren: 0.2 }
-    },
-    closed: {
-      transition: { staggerChildren: 0.05, staggerDirection: -1 }
-    }
+    open: { transition: { staggerChildren: 0.1, delayChildren: 0.2 } },
+    closed: { transition: { staggerChildren: 0.05, staggerDirection: -1 } }
   };
 
   const itemVariants: Variants = {
-    open: { 
-      opacity: 1, 
-      x: 0, 
-      display: 'block',
-      transition: { type: "spring", stiffness: 300, damping: 24 }
-    },
-    closed: { 
-      opacity: 0, 
-      x: -20, 
-      transitionEnd: { display: 'none' } 
-    }
+    open: { opacity: 1, x: 0, display: 'block', transition: { type: "spring", stiffness: 300, damping: 24 } },
+    closed: { opacity: 0, x: -20, transitionEnd: { display: 'none' } }
   };
 
   const buttonClick: Variants = {
@@ -93,22 +104,19 @@ export default function RetroSidebar() {
         initial={false}
         animate={isOpen ? "open" : "closed"}
         variants={sidebarVariants}
-        className="bg-white border-r-4 border-black flex flex-col relative z-10"
+        className="bg-white border-r-4 border-black flex flex-col relative z-50"
         style={{ boxShadow: '6px 0 0 rgba(0,0,0,0.1)' }}
       >
         
         {/* --- HEADER --- */}
-        <div className="p-5 border-b-4 border-black bg-white flex items-center justify-between h-24 overflow-hidden">
-          <button 
-            onClick={() => router.push("/dashboard")}
-            className="flex items-center"
-          >
+        <div className="p-5 border-b-4 border-black bg-white flex items-center justify-between h-24 overflow-hidden shrink-0">
+          <button onClick={() => router.push("/dashboard")} className="flex items-center">
             <AnimatePresence mode="wait">
               {isOpen && (
                 <motion.div 
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20, transition: { duration: 0.1 } }}
+                  exit={{ opacity: 0, x: -20 }}
                   className="flex items-center gap-3 whitespace-nowrap cursor-pointer"
                 >
                   <div className="w-10 h-10 bg-black flex items-center justify-center transform -rotate-3 shadow-[3px_3px_0_#FF90E8]">
@@ -121,30 +129,25 @@ export default function RetroSidebar() {
               )}
             </AnimatePresence>
           </button>
-          {/* Toggle Button */}
           <motion.button
             onClick={() => setIsOpen(!isOpen)}
             variants={buttonClick}
             initial="rest"
             whileHover="hover"
             whileTap="tap"
-            className={`p-2 border-2 border-black bg-[${colors.cyan}] ${!isOpen && 'mx-auto'}`}
-            style={{ backgroundColor: colors.cyan }}
+            className="p-2 border-2 border-black bg-[#4DE1C1]"
           >
             {isOpen ? <X className="w-6 h-6 text-black" strokeWidth={3} /> : <Menu className="w-6 h-6 text-black" strokeWidth={3} />}
           </motion.button>
         </div>
 
         {/* --- ACTION BUTTON --- */}
-        <div className="p-5 border-b-4 border-black bg-[#fafafa] min-h-[100px] flex items-center justify-center">
+        <div className="p-5 border-b-4 border-black bg-[#fafafa] min-h-[100px] flex items-center justify-center shrink-0">
           <AnimatePresence mode="wait">
             {isOpen ? (
               <motion.button
                 onClick={() => router.push("/dashboard")}
                 key="full-btn"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
                 variants={buttonClick}
                 whileHover="hover"
                 whileTap="tap"
@@ -155,10 +158,8 @@ export default function RetroSidebar() {
               </motion.button>
             ) : (
               <motion.button
+                onClick={() => router.push("/dashboard")}
                 key="icon-btn"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.1 } }}
                 variants={buttonClick}
                 whileHover="hover"
                 whileTap="tap"
@@ -179,7 +180,6 @@ export default function RetroSidebar() {
             animate={isOpen ? "open" : "closed"}
             className="p-5 space-y-8"
           >
-            
             {/* Section: Courses */}
             {(courses.length > 0 || isLoading) && (
               <motion.div variants={itemVariants} className="space-y-3">
@@ -192,23 +192,37 @@ export default function RetroSidebar() {
                    <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
                 ) : (
                   courses.map((item: Transcript) => (
-                    <motion.button
-                      onClick={() => handleNavigate('course', item._id!.toString())}
+                    <motion.div
                       key={item._id?.toString()}
                       variants={buttonClick}
                       whileHover="hover"
                       whileTap="tap"
-                      className="w-full text-left p-3 border-2 border-black bg-white group relative overflow-hidden"
+                      className="w-full text-left p-3 border-2 border-black bg-white group relative overflow-hidden cursor-pointer"
+                      onClick={() => handleNavigate('course', item._id!.toString())}
                     >
                       <div className="absolute top-0 left-0 w-2 h-full bg-[#FF90E8] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
-                      <div className="pl-1 group-hover:pl-3 transition-all duration-200">
+                      <div className="pl-1 group-hover:pl-3 transition-all duration-200 pr-6">
                         <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
                         <div className="flex items-center gap-1 text-xs font-mono text-gray-600 bg-gray-100 w-max px-1 border border-black">
                           <Clock className="w-3 h-3" />
                           {formatDate(item.createdAt)}
                         </div>
                       </div>
-                    </motion.button>
+                      
+                      {/* Tombol Delete */}
+                      <button 
+                        onClick={(e) => handleDelete(e, item._id!.toString())}
+                        disabled={isDeleting === item._id?.toString()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete History"
+                      >
+                         {isDeleting === item._id?.toString() ? (
+                           <span className="w-4 h-4 block rounded-full border-2 border-gray-400 border-t-black animate-spin" />
+                         ) : (
+                           <Trash2 className="w-4 h-4 text-red-600" />
+                         )}
+                      </button>
+                    </motion.div>
                   ))
                 )}
               </motion.div>
@@ -226,20 +240,34 @@ export default function RetroSidebar() {
                    <div className="text-xs text-gray-500 animate-pulse">Loading history...</div>
                 ) : (
                   careers.map((item: Transcript) => (
-                    <motion.button
-                      onClick={() => handleNavigate('career', item._id!.toString())}
+                    <motion.div
                       key={item._id?.toString()}
                       variants={buttonClick}
                       whileHover="hover"
                       whileTap="tap"
-                      className="w-full text-left p-3 border-2 border-black bg-white group relative"
+                      className="w-full text-left p-3 border-2 border-black bg-white group relative cursor-pointer"
+                      onClick={() => handleNavigate('career', item._id!.toString())}
                     >
                       <div className="absolute top-0 left-0 w-2 h-full bg-[#4DE1C1] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
-                      <div className="pl-1 group-hover:pl-3 transition-all duration-200">
+                      <div className="pl-1 group-hover:pl-3 transition-all duration-200 pr-6">
                         <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
                         <p className="text-xs font-mono text-gray-500">{formatDate(item.createdAt)}</p>
                       </div>
-                    </motion.button>
+
+                       {/* Tombol Delete */}
+                       <button 
+                        onClick={(e) => handleDelete(e, item._id!.toString())}
+                        disabled={isDeleting === item._id?.toString()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 hover:bg-red-100 rounded-full transition-colors opacity-0 group-hover:opacity-100"
+                        title="Delete History"
+                      >
+                         {isDeleting === item._id?.toString() ? (
+                           <span className="w-4 h-4 block rounded-full border-2 border-gray-400 border-t-black animate-spin" />
+                         ) : (
+                           <Trash2 className="w-4 h-4 text-red-600" />
+                         )}
+                      </button>
+                    </motion.div>
                   ))
                 )}
               </motion.div>
@@ -248,48 +276,43 @@ export default function RetroSidebar() {
 
           {/* Collapsed Icons View */}
           {!isOpen && (
-            <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="absolute top-[200px] left-0 w-full flex flex-col items-center space-y-4 pointer-events-none"
-            >
-                {/* Ikon Course (jika ada) */}
-                {courses.length > 0 && (
-                  <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring" }}
-                      className="pointer-events-auto"
-                  >
-                      <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]">
-                        <BookOpen className="w-5 h-5" />
-                      </div>
-                  </motion.div>
-                )}
-                
-                {/* Ikon Career (jika ada) */}
-                {careers.length > 0 && (
-                  <motion.div
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ delay: 0.1, type: "spring" }}
-                      className="pointer-events-auto"
-                  >
-                      <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white shadow-[3px_3px_0_black]">
-                        <Briefcase className="w-5 h-5" />
-                      </div>
-                  </motion.div>
-                )}
-            </motion.div>
-            )}
+             // ... kode collapsed icons sama seperti sebelumnya ...
+             <div className="absolute top-[200px] left-0 w-full flex flex-col items-center space-y-4 pointer-events-none">
+                 {courses.length > 0 && <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white"><BookOpen className="w-5 h-5"/></div>}
+                 {careers.length > 0 && <div className="w-10 h-10 border-2 border-black flex items-center justify-center bg-white"><Briefcase className="w-5 h-5"/></div>}
+             </div>
+          )}
         </div>
 
-        {/* --- USER ID CARD --- */}
-        <div className="border-t-4 border-black p-4 bg-[#FF90E8] overflow-hidden">
+        {/* --- USER ID CARD DENGAN POPUP LOGOUT --- */}
+        <div className="border-t-4 border-black p-4 bg-[#FF90E8] overflow-visible relative shrink-0">
+          
+          {/* Popup Logout Menu */}
+          <AnimatePresence>
+            {showUserMenu && isOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-full left-4 right-4 mb-2 bg-white border-4 border-black shadow-[4px_4px_0_black] z-50 overflow-hidden"
+              >
+                <button 
+                  onClick={handleLogout}
+                  className="w-full p-3 flex items-center gap-3 hover:bg-gray-100 transition-colors text-red-600 font-bold uppercase text-sm"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Logout
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <AnimatePresence mode="wait">
             {isOpen ? (
               <motion.button 
                 key="full-user"
+                // Toggle User Menu saat diklik
+                onClick={() => setShowUserMenu(!showUserMenu)} 
                 initial={{ x: -50, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: -50, opacity: 0 }}
@@ -305,11 +328,16 @@ export default function RetroSidebar() {
                   <p className="font-black text-black text-sm truncate uppercase">My Account</p>
                   <p className="text-xs font-mono text-gray-600 truncate">Logged In</p>
                 </div>
-                <ChevronDown className="w-5 h-5 text-black shrink-0" strokeWidth={3} />
+                {/* Animasi panah saat menu terbuka */}
+                <motion.div animate={{ rotate: showUserMenu ? 180 : 0 }}>
+                    <ChevronDown className="w-5 h-5 text-black shrink-0" strokeWidth={3} />
+                </motion.div>
               </motion.button>
             ) : (
               <motion.button 
                 key="icon-user"
+                // Saat mode closed, klik tombol user akan logout atau buka sidebar (opsional, di sini kita biarkan buka sidebar)
+                onClick={() => setIsOpen(true)}
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}

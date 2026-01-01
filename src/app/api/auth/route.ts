@@ -14,6 +14,12 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { action, email, password, fullName } = body;
 
+    if (action === 'logout') {
+      const cookieStore = await cookies();
+      cookieStore.delete('session_token'); // Hapus cookie
+      return NextResponse.json({ message: 'Logout berhasil' }, { status: 200 });
+    }
+
     if (!email || !password) {
       return NextResponse.json({ message: 'Email dan password wajib diisi' }, { status: 400 });
     }
