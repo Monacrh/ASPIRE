@@ -161,7 +161,7 @@ export default function Dashboard() {
                       or click to browse
                     </p>
                     <p className="text-gray-500 text-xs mb-6">
-                      PDF, JPG, PNG (Max 10MB)
+                      PDF (Max 2MB)
                     </p>
 
                     <label htmlFor="file-upload">
