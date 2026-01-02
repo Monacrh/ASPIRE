@@ -189,6 +189,22 @@ function CompetencyResultContent() {
           </svg>
         </motion.div>
 
+        {/* --- ADDED: REGENERATING INDICATOR --- */}
+        <AnimatePresence>
+          {!selectedId && isRegenerating && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }}
+              className="mt-8 text-center"
+            >
+              <span className="font-black text-sm uppercase tracking-widest animate-pulse">
+                Regenerating...
+              </span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        {/* ----------------------------------- */}
+
         {/* <AnimatePresence>
           {!selectedId && !isRegenerating && (
              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-8 text-center">

@@ -10,7 +10,6 @@ import DeleteModal from './delete-modal';
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
-// --- Definisi Tipe Props ---
 interface RetroSidebarProps {
   user?: {
     fullName?: string;
@@ -327,7 +326,13 @@ export default function RetroSidebar({ user }: RetroSidebarProps) {
                          <div className="absolute top-0 left-0 w-2 h-full bg-[#4DE1C1] transform -translate-x-full group-hover:translate-x-0 transition-transform duration-200 border-r-2 border-black"></div>
                         <div className="pl-1 group-hover:pl-3 transition-all duration-200 pr-6">
                           <h3 className="font-bold text-black text-sm leading-tight mb-1 truncate">{item.fileName}</h3>
-                          <p className="text-xs font-mono text-gray-500">{formatDate(item.createdAt)}</p>
+                          
+                          {/* DIPERBARUI: Menggunakan style yang sama dengan Course (Ikon Clock & Border) */}
+                          <div className="flex items-center gap-1 text-xs font-mono text-gray-600 bg-gray-100 w-max px-1 border border-black">
+                             <Clock className="w-3 h-3" />
+                             {formatDate(item.createdAt)}
+                          </div>
+                        
                         </div>
                          <button 
                           onClick={(e) => triggerDelete(e, item._id!.toString())}
