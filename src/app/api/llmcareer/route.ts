@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import clientPromise from "@/src/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { Transcript } from "@/src/types/transcript";
+import { v2 as cloudinary } from 'cloudinary';
+
+// ============================================
+// KONFIGURASI CLOUDINARY
+// ============================================
+cloudinary.config({
+  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 const ai = new GoogleGenAI({
   apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
@@ -13,57 +24,167 @@ const COLLECTION_NAME = 'transcripts';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { fileData, fileName, transcriptId, forceRegenerate } = body;
+    const { transcriptId, forceRegenerate } = body;
 
-    if (!fileData) {
+    if (!transcriptId) {
       return NextResponse.json(
-        { success: false, message: "File data is required" },
+        { success: false, message: "Transcript ID is required" },
         { status: 400 }
       );
     }
 
-    // ============================================
-    // 1. CEK CACHE DATABASE
-    // ============================================
-    if (transcriptId && !forceRegenerate) {
-      const client = await clientPromise;
-      const db = client.db(DB_NAME);
-      const collection = db.collection(COLLECTION_NAME);
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const collection = db.collection<Transcript>(COLLECTION_NAME);
 
-      const existingTranscript = await collection.findOne({ _id: new ObjectId(transcriptId) });
+    // ============================================
+    // 1. AMBIL DATA DARI DB
+    // ============================================
+    const existingTranscript = await collection.findOne({ _id: new ObjectId(transcriptId) });
 
-      if (existingTranscript?.recommendations) {
-        console.log("✅ Using cached recommendations from database");
-        return NextResponse.json({ 
-          success: true, 
-          data: existingTranscript.recommendations,
-          cached: true 
-        }, { status: 200 });
-      }
+    if (!existingTranscript) {
+      return NextResponse.json({ success: false, message: "Transcript not found" }, { status: 404 });
     }
 
-    // Tentukan MIME type
-    let mimeType = "application/pdf";
-    if (fileName?.endsWith(".png")) mimeType = "image/png";
-    if (fileName?.endsWith(".jpg") || fileName?.endsWith(".jpeg")) mimeType = "image/jpeg";
+    // Cek Cache
+    if (existingTranscript.recommendations && !forceRegenerate) {
+      console.log("✅ Using cached career recommendations");
+      return NextResponse.json({ 
+        success: true, 
+        data: existingTranscript.recommendations,
+        cached: true 
+      }, { status: 200 });
+    }
 
     // ============================================
-    // 2. LANGKAH 1: EKSTRAKSI TEKS (OCR)
+    // 2. PERSIAPAN FILE (FETCH DARI CLOUDINARY DENGAN SIGNED URL)
     // ============================================
+    let base64Data = "";
+
+    if (existingTranscript.fileUrl && existingTranscript.filePublicId) {
+      console.log("🔐 Generating signed URL for:", existingTranscript.filePublicId);
+      
+      try {
+        // Deteksi resource_type dari filePublicId atau fileName
+        let resourceType: 'image' | 'raw' | 'video' = 'raw';
+        const fileName = existingTranscript.fileName.toLowerCase();
+        
+        if (fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
+          resourceType = 'raw';
+        } else if (fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
+          resourceType = 'image';
+        }
+
+        // Generate Signed URL yang valid 1 jam
+        const signedUrl = cloudinary.url(existingTranscript.filePublicId, {
+          resource_type: resourceType,
+          type: 'upload',
+          sign_url: true,
+          secure: true,
+        });
+
+        console.log("⬇️ Fetching file from Cloudinary (signed):", signedUrl);
+        console.log("📋 Debug Info:");
+        console.log("  - Original URL:", existingTranscript.fileUrl);
+        console.log("  - Public ID:", existingTranscript.filePublicId);
+        console.log("  - Resource Type:", resourceType);
+
+        const response = await fetch(signedUrl, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; AspireBot/1.0)"
+          }
+        });
+
+        // Handle error responses
+        if (response.status === 404) {
+          console.error("❌ File Not Found on Cloudinary (Status: 404)");
+          console.error("🔍 Trying alternative method: Direct fetch from fileUrl");
+          
+          // ✅ FALLBACK: Coba fetch langsung dari fileUrl
+          try {
+            const directResponse = await fetch(existingTranscript.fileUrl);
+            if (directResponse.ok) {
+              console.log("✅ Success fetching from direct URL");
+              const arrayBuffer = await directResponse.arrayBuffer();
+              base64Data = Buffer.from(arrayBuffer).toString("base64");
+            } else {
+              throw new Error("Direct URL also failed");
+            }
+          } catch (fallbackError) {
+            return NextResponse.json({ 
+              success: false, 
+              message: "File tidak ditemukan di server penyimpanan. Silakan hapus dan upload ulang transcript ini.",
+              code: "FILE_NOT_FOUND",
+              debug: {
+                publicId: existingTranscript.filePublicId,
+                url: existingTranscript.fileUrl,
+                signedUrl: signedUrl
+              }
+            }, { status: 404 });
+          }
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          console.error(`❌ Access Denied (Status: ${response.status})`);
+          return NextResponse.json({ 
+            success: false, 
+            message: "Gagal mengakses file. Periksa konfigurasi Cloudinary API Key.",
+            code: "ACCESS_DENIED"
+          }, { status: 403 });
+        }
+
+        if (!response.ok) {
+          throw new Error(`Cloudinary Error: ${response.status} - ${response.statusText}`);
+        }
+
+        const arrayBuffer = await response.arrayBuffer();
+        base64Data = Buffer.from(arrayBuffer).toString("base64");
+        console.log("✅ File successfully fetched and converted to base64");
+
+      } catch (fetchError: any) {
+        console.error("❌ Cloudinary Fetch Error:", fetchError.message);
+        return NextResponse.json({ 
+          success: false, 
+          message: `Gagal mengunduh file: ${fetchError.message}`,
+          code: "FETCH_ERROR"
+        }, { status: 500 });
+      }
+    } 
+    else if (existingTranscript.fileData) {
+      console.log("📂 Using stored Base64 data from MongoDB");
+      base64Data = existingTranscript.fileData;
+    } 
+    else {
+      return NextResponse.json({ 
+        success: false, 
+        message: "Data file tidak ditemukan (URL atau Base64 hilang)",
+        code: "NO_FILE_DATA"
+      }, { status: 404 });
+    }
+
+    // ============================================
+    // 3. EKSTRAKSI TEKS DARI FILE
+    // ============================================
+    let mimeType = "application/pdf";
+    const fileName = existingTranscript.fileName.toLowerCase();
+    if (fileName.endsWith(".png")) mimeType = "image/png";
+    if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) mimeType = "image/jpeg";
+
     console.log("📄 Extracting transcript text...");
     
-    // Kita panggil AI khusus untuk membaca teks saja
     const extractionResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
+      model: "gemini-2.5-flash", 
       contents: [
         {
           role: "user",
           parts: [
-            { text: "Extract all text content from this academic transcript. Return ONLY the raw text with subject names and grades, no formatting or explanation." },
+            { 
+              text: "Extract all text content from this academic transcript. Return ONLY the raw text with subject names and grades, no formatting or explanation." 
+            },
             {
               inlineData: {
                 mimeType: mimeType,
-                data: fileData, 
+                data: base64Data, 
               },
             },
           ],
@@ -72,13 +193,17 @@ export async function POST(request: NextRequest) {
     });
 
     const transcriptText = extractionResponse.text || "";
-    console.log("✅ Transcript extracted (preview):", transcriptText.substring(0, 100) + "...");
+    if (!transcriptText) {
+      throw new Error("Failed to extract text from document");
+    }
+
+    console.log("✅ Text extracted successfully");
 
     // ============================================
-    // 3. LANGKAH 2: ANALISIS KARIR (PROMPT UTAMA)
+    // 4. GENERATE CAREER RECOMMENDATIONS
     // ============================================
-    // Kita masukkan text yang sudah diextract ke dalam prompt
-    
+    console.log("🤖 Generating career recommendations with AI...");
+
     const prompt = `
 You are an expert Career Counselor and Data Analyst.
 
@@ -141,66 +266,55 @@ CRITICAL RULES:
 4. **DayInLife**: Percentages inside this array must sum to 100%.
 `;
 
-    console.log("🚀 Generating recommendations...");
-    
-    // Panggil AI lagi untuk analisis, kali ini cukup kirim prompt teks karena data transkrip sudah ada di dalam prompt
     const analysisResponse = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ],
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
     });
 
     const textResponse = analysisResponse.text;
-
     if (!textResponse) {
-        throw new Error("No response text received from AI");
+      throw new Error("No response text received from AI");
     }
     
-    // Bersihkan format markdown
-    const cleanedText = textResponse.replace(/```json/g, "").replace(/```/g, "").trim();
+    // Clean up response
+    const cleanedText = textResponse
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
     
-    let recommendations;
-    try {
-        recommendations = JSON.parse(cleanedText);
-    } catch (parseError) {
-        console.error("JSON Parse Error:", parseError);
-        console.error("Raw Text:", cleanedText);
-        throw new Error("Failed to parse AI response as JSON");
-    }
+    const recommendations = JSON.parse(cleanedText);
+
+    console.log("✅ Career recommendations generated successfully");
 
     // ============================================
-    // 4. SIMPAN KE DATABASE
+    // 5. SAVE TO DATABASE
     // ============================================
-    if (transcriptId && recommendations) {
-      const client = await clientPromise;
-      const db = client.db(DB_NAME);
-      
-      await db.collection(COLLECTION_NAME).updateOne(
-        { _id: new ObjectId(transcriptId) },
-        { 
-          $set: { 
-            recommendations: recommendations,
-            updatedAt: new Date()
-          } 
-        }
-      );
-      console.log("💾 Saved to DB");
-    }
+    await collection.updateOne(
+      { _id: new ObjectId(transcriptId) },
+      { 
+        $set: { 
+          recommendations: recommendations, 
+          updatedAt: new Date() 
+        } 
+      }
+    );
+
+    console.log("✅ Recommendations saved to database");
 
     return NextResponse.json({ 
       success: true, 
-      data: recommendations,
+      data: recommendations, 
       cached: false 
     }, { status: 200 });
 
   } catch (error: any) {
-    console.error("LLM Error:", error);
+    console.error("❌ LLM Career Error:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to generate recommendations" },
+      { 
+        success: false, 
+        message: error.message || "Failed to generate recommendations",
+        code: "PROCESSING_ERROR"
+      },
       { status: 500 }
     );
   }

@@ -1,15 +1,19 @@
+// FILE: src/types/transcript.ts
 import { ObjectId } from "mongodb";
 
 export interface Transcript {
   _id?: ObjectId;
-  userId: string | ObjectId; // Relasi ke User
+  userId: string | ObjectId;
   fileName: string;
-  recommendationType: 'course' | 'career'; // Tipe rekomendasi yang dipilih
-  fileData?: string; // Bisa diisi Base64 atau text content (jika file kecil)
+  recommendationType: 'course' | 'career';
   
-  // NEW: Field untuk menyimpan hasil LLM
-  recommendations?: any; // JSON response dari LLM (career/course recommendations)
+  fileUrl: string;       
+  filePublicId?: string; 
   
+  // TAMBAHKAN BARIS INI (Tanda tanya ? artinya opsional)
+  fileData?: string; 
+
+  recommendations?: any;
   createdAt: Date;
-  updatedAt?: Date; // Track kapan terakhir di-update
+  updatedAt?: Date;
 }

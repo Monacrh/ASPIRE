@@ -12,6 +12,7 @@
     "@google/genai": "^1.30.0",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
     "framer-motion": "^12.23.24",
     "jose": "^6.1.2",
     "lucide-react": "^0.554.0",
