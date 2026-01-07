@@ -19,6 +19,12 @@ interface AcademicStat {
   reason: string;
 }
 
+// 1. TAMBAHKAN INTERFACE BARU UNTUK PLATFORM
+interface LearningPlatform {
+  name: string;
+  course: string;
+}
+
 interface CompetencyItem {
   id: string;
   name: string;
@@ -34,7 +40,10 @@ interface CompetencyItem {
   keyStrength: string;
   areaToImprove: string;
   academicStats: AcademicStat[];
-  learningPlatforms: string[];
+  
+  // 2. UBAH TIPE DATA DI SINI (dari string[] menjadi LearningPlatform[])
+  learningPlatforms: LearningPlatform[]; 
+  
   relatedRoles: string[];
   actionPlan: string;
 }
@@ -75,13 +84,25 @@ function CompetencyResultContent() {
 
       const json = await res.json();
       if (json.success) {
-        const result = Array.isArray(json.data) ? json.data : [json.data];
+        // Handle jika data dibungkus array atau object tunggal
+        let result = [];
+        if (json.data) {
+             // Cek apakah json.data memiliki key 'domains' (format baru) atau langsung array
+             if (json.data.domains) {
+                 result = json.data.domains;
+             } else if (Array.isArray(json.data)) {
+                 result = json.data;
+             } else {
+                 result = [json.data];
+             }
+        }
         setDataList(result);
       } else {
         throw new Error(json.message);
       }
       setError(null);
     } catch (err: any) {
+      console.error("Fetch error:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -101,12 +122,15 @@ function CompetencyResultContent() {
   const selectedItem = selectedId ? dataList.find(r => r.id === selectedId) : null;
 
   if (loading && !isRegenerating) return <BookLoader />;
-  if (error || dataList.length === 0) return <div className="p-10 text-center font-bold">No Data Found</div>;
+  if (error || dataList.length === 0) return <div className="p-10 text-center font-bold">No Data Found. {error}</div>;
 
   // --- CHART LOGIC ---
   const chartData = dataList.reduce((acc, slice) => {
     const total = dataList.reduce((sum, item) => sum + item.percentage, 0);
-    const slicePercent = slice.percentage / total;
+    // Hindari pembagian dengan nol
+    const safeTotal = total === 0 ? 1 : total; 
+    const slicePercent = slice.percentage / safeTotal;
+    
     const startPercent = acc.currentPercent;
     const endPercent = startPercent + slicePercent;
     const [startX, startY] = getCoordinatesForPercent(startPercent);
@@ -189,7 +213,7 @@ function CompetencyResultContent() {
           </svg>
         </motion.div>
 
-        {/* --- ADDED: REGENERATING INDICATOR --- */}
+        {/* --- REGENERATING INDICATOR --- */}
         <AnimatePresence>
           {!selectedId && isRegenerating && (
             <motion.div 
@@ -203,17 +227,6 @@ function CompetencyResultContent() {
             </motion.div>
           )}
         </AnimatePresence>
-        {/* ----------------------------------- */}
-
-        {/* <AnimatePresence>
-          {!selectedId && !isRegenerating && (
-             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="mt-8 text-center">
-                <div className="inline-flex items-center gap-2 bg-black text-white px-4 py-2 font-bold uppercase tracking-widest text-xs transform -rotate-2 shadow-[4px_4px_0_#FF90E8]">
-                    <MousePointerClick className="w-4 h-4" /> Click slice to view analysis
-                </div>
-             </motion.div>
-          )}
-        </AnimatePresence> */}
       </motion.div>
 
       {/* --- CONTENT AREA (Rich Bento Grid) --- */}
@@ -261,7 +274,6 @@ function CompetencyResultContent() {
                             <FileText className="w-5 h-5" /> Academic Track
                         </h3>
                         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 space-y-2">
-                             {/* FILTER KOSONG: Hanya tampilkan jika grade ada isinya */}
                              {selectedItem.evidence && selectedItem.evidence
                                 .filter(ev => ev.grade && ev.grade.trim() !== '' && ev.grade !== '-' && ev.grade !== 'null')
                                 .map((ev, i) => (
@@ -309,7 +321,7 @@ function CompetencyResultContent() {
                         </div>
                     </div>
 
-                    {/* Stats (Force Show 3) */}
+                    {/* Stats */}
                     <div className="bg-white border-4 border-black p-5 shadow-[6px_6px_0_black]">
                         <h3 className="font-black uppercase text-lg mb-4 flex items-center gap-2">
                             <TrendingUp className="w-5 h-5" /> Performance
@@ -352,16 +364,22 @@ function CompetencyResultContent() {
                         </p>
                     </div>
 
-                     {/* Learning Platforms */}
+                     {/* 3. PLATFORMS - UPDATED RENDERING */}
                     <div className="bg-[#F3F4F6] border-4 border-black p-5 shadow-[6px_6px_0_black]">
                         <h3 className="font-black uppercase text-sm mb-3 flex items-center gap-2">
                             <MonitorPlay className="w-4 h-4" /> Platforms
                         </h3>
                         <div className="flex flex-col gap-2">
+                             {/* SEKARANG AKSES .name DAN .course */}
                              {selectedItem.learningPlatforms && selectedItem.learningPlatforms.map((platform, i) => (
-                                <div key={i} className="flex items-center gap-2 bg-white border border-black p-2">
-                                    <Globe className="w-3 h-3 text-gray-400" />
-                                    <span className="text-[10px] font-bold uppercase truncate">{platform}</span>
+                                <div key={i} className="flex flex-col bg-white border border-black p-2">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <Globe className="w-3 h-3 text-black" />
+                                        <span className="text-[10px] font-black uppercase truncate text-black">{platform.name}</span>
+                                    </div>
+                                    <span className="text-[9px] font-medium text-gray-600 truncate border-t border-gray-200 pt-1 mt-1">
+                                        {platform.course}
+                                    </span>
                                 </div>
                              ))}
                         </div>

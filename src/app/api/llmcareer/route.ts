@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import clientPromise from "@/src/lib/mongodb";
 import { ObjectId } from "mongodb";
 import { Transcript } from "@/src/types/transcript";
 import { v2 as cloudinary } from 'cloudinary';
+import OpenAI from "openai";
+import PDFParser from "pdf2json";
 
 // ============================================
 // KONFIGURASI CLOUDINARY
@@ -14,12 +15,145 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GOOGLE_GEMINI_API_KEY || "",
+// ============================================
+// KONFIGURASI OPENAI
+// ============================================
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "",
 });
 
 const DB_NAME = 'aspire_db';
 const COLLECTION_NAME = 'transcripts';
+
+// ============================================
+// FUNGSI UNTUK MEMBERSIHKAN TEKS (SEDERHANA)
+// ============================================
+function cleanAndSummarizeTranscript(text: string): string {
+  console.log(`🧹 Cleaning transcript text (${text.length} chars)...`);
+  
+  // Hapus karakter null, replacement character, dan whitespace berlebih
+  const cleaned = text
+    .replace(/\uFFFD/g, '') // Hapus replacement character
+    .replace(/[\x00-\x09\x0B-\x0C\x0E-\x1F\x7F]/g, '') // Hapus control chars
+    .replace(/\s+/g, ' ') // Collapse whitespace jadi satu spasi
+    .trim();
+
+  // FIX: Jangan gunakan Regex kompleks untuk memotong teks.
+  // Model AI sekarang kuat menampung hingga 100.000+ karakter.
+  // 6000-20000 karakter masih sangat aman.
+  
+  const MAX_CHARS = 25000; // Batas aman yang sangat besar
+  
+  if (cleaned.length > MAX_CHARS) {
+    console.log(`⚠️ Text is very long (${cleaned.length} chars), truncating to ${MAX_CHARS}...`);
+    return cleaned.substring(0, MAX_CHARS) + "\n...[Truncated]";
+  }
+  
+  console.log(`✅ Final text length: ${cleaned.length} characters (No aggressive summarization)`);
+  return cleaned;
+}
+
+// ============================================
+// FUNGSI EXTRACT TEXT DARI PDF dengan pdf2json
+// ============================================
+async function extractTextFromPDF(base64Data: string): Promise<string> {
+  console.log("📄 Extracting text from PDF with pdf2json...");
+  
+  return new Promise((resolve, reject) => {
+    try {
+      const pdfParser = new PDFParser();
+      
+      pdfParser.on("pdfParser_dataReady", (pdfData) => {
+        try {
+          let fullText = '';
+          
+          if (pdfData.Pages) {
+            for (const page of pdfData.Pages) {
+              if (page.Texts) {
+                for (const text of page.Texts) {
+                  for (const textRun of text.R) {
+                    if (textRun.T) {
+                      const decodedText = decodeURIComponent(textRun.T);
+                      fullText += decodedText + ' ';
+                    }
+                  }
+                }
+              }
+              fullText += '\n';
+            }
+          }
+          
+          console.log(`✅ PDF parsed successfully (${pdfData.Pages?.length || 0} pages)`);
+          resolve(fullText.trim());
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          reject(new Error(`Failed to process PDF data: ${errorMessage}`));
+        }
+      });
+      
+      pdfParser.on("pdfParser_dataError", (errData: Error | { parserError: Error }) => {
+        const errorMessage = errData instanceof Error 
+          ? errData.message 
+          : ('parserError' in errData ? errData.parserError.message : 'Unknown PDF error');
+        console.error("❌ PDF Parse Error:", errorMessage);
+        reject(new Error(`PDF parsing failed: ${errorMessage}`));
+      });
+      
+      const buffer = Buffer.from(base64Data, 'base64');
+      pdfParser.parseBuffer(buffer);
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error("❌ PDF Parser Error:", errorMessage);
+      reject(new Error(`PDF extraction failed: ${errorMessage}`));
+    }
+  });
+}
+
+// ============================================
+// FUNGSI OCR UNTUK IMAGE dengan OpenAI Vision
+// ============================================
+async function extractTextFromImage(base64Data: string, mimeType: string): Promise<string> {
+  console.log("🖼️ Extracting text from image with OpenAI Vision...");
+  
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4.1-nano-2025-04-14",
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Extract ALL text content from this academic transcript. Return ONLY the raw text with subject names and grades. Include everything you can read. No formatting, no explanation, just the text."
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Data}`
+              }
+            }
+          ]
+        }
+      ],
+      max_tokens: 4096,
+      temperature: 0.1,
+    });
+
+    const extractedText = response.choices[0]?.message?.content || "";
+    
+    if (!extractedText) {
+      throw new Error("No text extracted from image");
+    }
+    
+    console.log("✅ Text extracted with OpenAI Vision");
+    return extractedText;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("❌ OpenAI Vision Error:", errorMessage);
+    throw new Error(`Image extraction failed: ${errorMessage}`);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -57,25 +191,22 @@ export async function POST(request: NextRequest) {
     }
 
     // ============================================
-    // 2. PERSIAPAN FILE (FETCH DARI CLOUDINARY DENGAN SIGNED URL)
+    // 2. PERSIAPAN FILE
     // ============================================
     let base64Data = "";
 
     if (existingTranscript.fileUrl && existingTranscript.filePublicId) {
-      console.log("🔐 Generating signed URL for:", existingTranscript.filePublicId);
-      
       try {
-        // Deteksi resource_type dari filePublicId atau fileName
         let resourceType: 'image' | 'raw' | 'video' = 'raw';
-        const fileName = existingTranscript.fileName.toLowerCase();
         
-        if (fileName.endsWith('.pdf') || fileName.endsWith('.doc') || fileName.endsWith('.docx')) {
-          resourceType = 'raw';
-        } else if (fileName.endsWith('.png') || fileName.endsWith('.jpg') || fileName.endsWith('.jpeg')) {
-          resourceType = 'image';
+        // Deteksi tipe resource cloudinary
+        if (existingTranscript.fileUrl.includes('/image/upload/')) resourceType = 'image';
+        else if (existingTranscript.fileUrl.includes('/raw/upload/')) resourceType = 'raw';
+        else {
+            const fName = existingTranscript.fileName.toLowerCase();
+            if (fName.endsWith('.png') || fName.endsWith('.jpg') || fName.endsWith('.jpeg')) resourceType = 'image';
         }
 
-        // Generate Signed URL yang valid 1 jam
         const signedUrl = cloudinary.url(existingTranscript.filePublicId, {
           resource_type: resourceType,
           type: 'upload',
@@ -83,239 +214,173 @@ export async function POST(request: NextRequest) {
           secure: true,
         });
 
-        console.log("⬇️ Fetching file from Cloudinary (signed):", signedUrl);
-        console.log("📋 Debug Info:");
-        console.log("  - Original URL:", existingTranscript.fileUrl);
-        console.log("  - Public ID:", existingTranscript.filePublicId);
-        console.log("  - Resource Type:", resourceType);
-
-        const response = await fetch(signedUrl, {
-          headers: {
-            "User-Agent": "Mozilla/5.0 (compatible; AspireBot/1.0)"
-          }
-        });
-
-        // Handle error responses
-        if (response.status === 404) {
-          console.error("❌ File Not Found on Cloudinary (Status: 404)");
-          console.error("🔍 Trying alternative method: Direct fetch from fileUrl");
-          
-          // ✅ FALLBACK: Coba fetch langsung dari fileUrl
-          try {
-            const directResponse = await fetch(existingTranscript.fileUrl);
-            if (directResponse.ok) {
-              console.log("✅ Success fetching from direct URL");
-              const arrayBuffer = await directResponse.arrayBuffer();
-              base64Data = Buffer.from(arrayBuffer).toString("base64");
-            } else {
-              throw new Error("Direct URL also failed");
-            }
-          } catch (fallbackError) {
-            return NextResponse.json({ 
-              success: false, 
-              message: "File tidak ditemukan di server penyimpanan. Silakan hapus dan upload ulang transcript ini.",
-              code: "FILE_NOT_FOUND",
-              debug: {
-                publicId: existingTranscript.filePublicId,
-                url: existingTranscript.fileUrl,
-                signedUrl: signedUrl
-              }
-            }, { status: 404 });
-          }
-        }
-
-        if (response.status === 401 || response.status === 403) {
-          console.error(`❌ Access Denied (Status: ${response.status})`);
-          return NextResponse.json({ 
-            success: false, 
-            message: "Gagal mengakses file. Periksa konfigurasi Cloudinary API Key.",
-            code: "ACCESS_DENIED"
-          }, { status: 403 });
-        }
+        console.log("⬇️ Fetching file from Cloudinary...");
+        const response = await fetch(signedUrl);
 
         if (!response.ok) {
-          throw new Error(`Cloudinary Error: ${response.status} - ${response.statusText}`);
+          console.warn("⚠️ Signed URL failed, trying direct URL...");
+          const directResponse = await fetch(existingTranscript.fileUrl);
+          if (directResponse.ok) {
+             const arrayBuffer = await directResponse.arrayBuffer();
+             base64Data = Buffer.from(arrayBuffer).toString("base64");
+          } else {
+             throw new Error("Failed to fetch file from both Signed and Direct URLs");
+          }
+        } else {
+          const arrayBuffer = await response.arrayBuffer();
+          base64Data = Buffer.from(arrayBuffer).toString("base64");
         }
-
-        const arrayBuffer = await response.arrayBuffer();
-        base64Data = Buffer.from(arrayBuffer).toString("base64");
-        console.log("✅ File successfully fetched and converted to base64");
-
-      } catch (fetchError: any) {
-        console.error("❌ Cloudinary Fetch Error:", fetchError.message);
-        return NextResponse.json({ 
-          success: false, 
-          message: `Gagal mengunduh file: ${fetchError.message}`,
-          code: "FETCH_ERROR"
-        }, { status: 500 });
+      } catch (fetchError) {
+        console.error("❌ Fetch Error:", fetchError);
+        return NextResponse.json({ success: false, message: "Gagal mengunduh file" }, { status: 500 });
       }
-    } 
-    else if (existingTranscript.fileData) {
-      console.log("📂 Using stored Base64 data from MongoDB");
+    } else if (existingTranscript.fileData) {
       base64Data = existingTranscript.fileData;
-    } 
-    else {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Data file tidak ditemukan (URL atau Base64 hilang)",
-        code: "NO_FILE_DATA"
-      }, { status: 404 });
+    } else {
+      return NextResponse.json({ success: false, message: "Data file hilang" }, { status: 404 });
     }
 
     // ============================================
-    // 3. EKSTRAKSI TEKS DARI FILE
+    // 3. EKSTRAKSI TEKS
     // ============================================
-    let mimeType = "application/pdf";
     const fileName = existingTranscript.fileName.toLowerCase();
-    if (fileName.endsWith(".png")) mimeType = "image/png";
-    if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) mimeType = "image/jpeg";
+    let transcriptText = "";
 
-    console.log("📄 Extracting transcript text...");
-    
-    const extractionResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash", 
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { 
-              text: "Extract all text content from this academic transcript. Return ONLY the raw text with subject names and grades, no formatting or explanation." 
-            },
-            {
-              inlineData: {
-                mimeType: mimeType,
-                data: base64Data, 
-              },
-            },
-          ],
-        },
-      ],
-    });
-
-    const transcriptText = extractionResponse.text || "";
-    if (!transcriptText) {
-      throw new Error("Failed to extract text from document");
+    if (fileName.endsWith('.pdf')) {
+      transcriptText = await extractTextFromPDF(base64Data);
+    } else if (fileName.match(/\.(png|jpg|jpeg)$/)) {
+      const mimeType = fileName.endsWith('.png') ? "image/png" : "image/jpeg";
+      transcriptText = await extractTextFromImage(base64Data, mimeType);
+    } else {
+      return NextResponse.json({ success: false, message: "Unsupported file" }, { status: 400 });
     }
-
-    console.log("✅ Text extracted successfully");
+    
+    // PENTING: Gunakan fungsi clean yang BARU (tanpa regex pemotong)
+    const cleanedText = cleanAndSummarizeTranscript(transcriptText);
 
     // ============================================
     // 4. GENERATE CAREER RECOMMENDATIONS
     // ============================================
-    console.log("🤖 Generating career recommendations with AI...");
+    console.log("🤖 Generating career recommendations with OpenAI...");
 
-    const prompt = `
-You are an expert Career Counselor and Data Analyst.
+    const recommendationPrompt = `You are an expert Career Counselor with 15 years of experience in academic advising and career planning.
 
-STUDENT TRANSCRIPT DATA:
-${transcriptText}
+STUDENT PROFILE (TRANSCRIPT CONTENT):
+${cleanedText}
 
-TASK: Analyze the transcript text above and provide ALL suitable career path recommendations.
+TASK: 
+1. Analyze the student's academic strengths, weaknesses, and patterns from the transcript above.
+2. Based on that analysis, provide 4-8 COMPREHENSIVE career recommendations. 
+3. For each career, provide DETAILED, SPECIFIC information tailored to this student.
 
-ANALYSIS INSTRUCTIONS:
-1. **Transcript Analysis**: Use the extracted text to identify strengths (e.g., specific high grades in Math/Science -> STEM).
-2. **Internal Knowledge**: Use your internal training data to generate ACCURATE, REALISTIC market data (Salary, Growth, Tools) for 2024-2025.
-3. **Matching**: Suggest 4-8 careers. Specialized profile = fewer, focused careers. Generalist = broader options.
+IMPORTANT: Be thorough and detailed. Don't use generic descriptions. Match the student's background to specific career paths.
 
-OUTPUT REQUIREMENTS (STRICT):
-Return ONLY a valid JSON array. NO markdown.
-Each recommendation object MUST follow this EXACT structure:
+Return ONLY valid JSON with this EXACT structure:
+{
+  "recommendations": [
+    {
+      "id": "1",
+      "name": "Specific Career Title (be precise, not generic)",
+      "percentage": 18,
+      "color": "#FFD93D",
+      "description": "Write 3-4 detailed sentences explaining WHY this career matches the student's transcript. Reference specific courses or strengths.",
+      "details": [
+        "Specific technical skill related to their coursework",
+        "Another specific skill they need to develop",
+        "Soft skill relevant to this career",
+        "Domain knowledge from their studies",
+        "Additional technical competency",
+        "Professional skill for career growth"
+      ],
+      "tags": ["Tag1", "Tag2", "Tag3", "Tag4"],
+      "salary": "$50,000 - $90,000",
+      "tools": ["Specific Tool 1", "Specific Tool 2", "Specific Tool 3", "Specific Tool 4", "Specific Tool 5"],
+      "stats": { "logic": 85, "creativity": 60, "social": 45 },
+      "careerPath": [
+        { "level": "Entry Level Position Name", "years": "0-2y" },
+        { "level": "Mid-Level Position Name", "years": "2-5y" },
+        { "level": "Senior Position Name", "years": "5-8y" },
+        { "level": "Lead/Executive Position", "years": "8y+" }
+      ],
+      "dayInLife": [
+        { "activity": "Specific main task", "percentage": 35 },
+        { "activity": "Another specific activity", "percentage": 25 },
+        { "activity": "Collaboration/meetings", "percentage": 20 },
+        { "activity": "Learning/research", "percentage": 12 },
+        { "activity": "Administrative", "percentage": 8 }
+      ],
+      "growthMetrics": {
+        "demand": 90,
+        "growth": "+22% yearly",
+        "trend": "rising"
+      },
+      "industries": ["Specific Industry 1", "Specific Industry 2", "Specific Industry 3"],
+      "learningResources": [
+        { "platform": "Coursera", "type": "Specific Course" },
+        { "platform": "Udemy", "type": "Specific Bootcamp" },
+        { "platform": "YouTube/Other", "type": "Additional resource" }
+      ],
+      "similarCareers": ["Related Career 1", "Related Career 2", "Related Career 3"]
+    }
+  ]
+}
 
-[
-  {
-    "id": "1",
-    "name": "Career Title",
-    "percentage": 30,
-    "color": "#FFD93D",
-    "description": "Personalized description based on the transcript.",
-    "details": ["Skill 1", "Skill 2", "Skill 3", "Skill 4"],
-    "tags": ["Tag 1", "Tag 2"],
-    "salary": "$XX,XXX - $XXX,XXX", 
-    "tools": ["Tool 1", "Tool 2", "Tool 3"],
-    "stats": { "logic": 85, "creativity": 60, "social": 45 },
-    "careerPath": [
-      { "level": "Entry", "years": "0-2y" },
-      { "level": "Mid", "years": "2-5y" },
-      { "level": "Senior", "years": "5-8y" },
-      { "level": "Lead", "years": "8y+" }
-    ],
-    "dayInLife": [
-      { "activity": "Main Task", "percentage": 40 },
-      { "activity": "Side Task", "percentage": 30 },
-      { "activity": "Collab", "percentage": 20 },
-      { "activity": "Study", "percentage": 10 }
-    ],
-    "growthMetrics": {
-      "demand": 90, 
-      "growth": "+22% yearly", 
-      "trend": "rising" 
-    },
-    "industries": ["Ind A", "Ind B"],
-    "learningResources": [
-      { "platform": "Coursera", "type": "Course" },
-      { "platform": "Udemy", "type": "Bootcamp" }
-    ],
-    "similarCareers": ["Alt 1", "Alt 2"]
-  }
-]
+CRITICAL REQUIREMENTS:
+1. **Generate 6-8 careers** to give students options.
+2. **Percentages**: MUST sum to exactly 100%.
+3. **Colors**: Use palette: #FFD93D, #FF90E8, #4DE1C1, #FFA07A, #A78BFA, #FB923C, #34D399, #60A5FA.
+4. **Skills/Tools**: Be specific (e.g., "Python, PyTorch" NOT just "Programming").
+5. **Output**: Return ONLY the JSON object with "recommendations" key.`;
 
-CRITICAL RULES:
-1. **Percentages**: The "percentage" field represents match strength. **ALL percentages across all recommendations MUST sum to EXACTLY 100%**.
-2. **Colors**: Use: #FFD93D, #FF90E8, #4DE1C1, #FFA07A, #A78BFA, #FB923C, #34D399, #60A5FA.
-3. **Salary**: Must be in USD format "$XX,XXX - $XXX,XXX".
-4. **DayInLife**: Percentages inside this array must sum to 100%.
-`;
-
-    const analysisResponse = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+    const chatCompletion = await openai.chat.completions.create({
+      model: "gpt-5-nano-2025-08-07",
+      messages: [
+        { role: "system", content: "You are a career counselor. Output only JSON." },
+        { role: "user", content: recommendationPrompt }
+      ],
+      temperature: 1, 
+      max_completion_tokens: 16000, 
+      response_format: { type: "json_object" },
     });
 
-    const textResponse = analysisResponse.text;
+    const textResponse = chatCompletion.choices[0]?.message?.content;
+    
+    // ERROR HANDLING YANG LEBIH BAIK
     if (!textResponse) {
-      throw new Error("No response text received from AI");
+      console.error("❌ OpenAI returned empty response. Transcript length:", cleanedText.length);
+      throw new Error("AI provider returned no data. Please try again.");
     }
-    
-    // Clean up response
-    const cleanedText = textResponse
-      .replace(/```json/g, "")
-      .replace(/```/g, "")
-      .trim();
-    
-    const recommendations = JSON.parse(cleanedText);
 
-    console.log("✅ Career recommendations generated successfully");
+    const cleanedResponse = textResponse.replace(/```json/g, "").replace(/```/g, "").trim();
+    
+    let recommendations;
+    try {
+      const parsed = JSON.parse(cleanedResponse);
+      recommendations = parsed.recommendations || parsed.data || parsed.careers || (Array.isArray(parsed) ? parsed : [parsed]);
+      
+      if (!Array.isArray(recommendations) || recommendations.length === 0) {
+        throw new Error("Invalid recommendations structure");
+      }
+    } catch (parseError) {
+      console.error("❌ JSON Parse Error. Raw response:", textResponse.substring(0, 200));
+      throw new Error("Failed to parse AI response.");
+    }
 
     // ============================================
     // 5. SAVE TO DATABASE
     // ============================================
     await collection.updateOne(
       { _id: new ObjectId(transcriptId) },
-      { 
-        $set: { 
-          recommendations: recommendations, 
-          updatedAt: new Date() 
-        } 
-      }
+      { $set: { recommendations: recommendations, updatedAt: new Date() } }
     );
 
-    console.log("✅ Recommendations saved to database");
+    console.log("✅ Recommendations saved successfully");
 
-    return NextResponse.json({ 
-      success: true, 
-      data: recommendations, 
-      cached: false 
-    }, { status: 200 });
+    return NextResponse.json({ success: true, data: recommendations, cached: false }, { status: 200 });
 
-  } catch (error: any) {
-    console.error("❌ LLM Career Error:", error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        message: error.message || "Failed to generate recommendations",
-        code: "PROCESSING_ERROR"
-      },
-      { status: 500 }
-    );
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error("❌ Process Error:", errorMessage);
+    return NextResponse.json({ success: false, message: errorMessage }, { status: 500 });
   }
 }
