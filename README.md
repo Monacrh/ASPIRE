@@ -12,3 +12,20 @@ career goals and academic capabilities
 with long-term career objectives 
 - This results in suboptimal decision-making, inefficient academic planning, and 
 potential misalignment between educational choices and professional aspirations
+
+## Objective
+Develop an AI-based academic recommendation system with three integrated modules 
+(automated parsing, LLM career matching, and intelligent course recommendations). 
+Specific Objectives 
+1. Automated Academic History Parsing 
+- Build an automated parsing module by 
+- Automatically extracting transcript data (GPA, course grades, and performance 
+trends) 
+- Identifying each student's academic strengths and weaknesses 
+2. LLM-Based Personalized Career Matching 
+- Matching academic profiles with career paths based on industry date 
+- Providing personalized explanations with confidence 
+3. Intelligent Course Recommendation System 
+- Suggesting course skills aligned with career goals 
+- Providing justification based on a gap analysis between current skills and target 
+careers 
